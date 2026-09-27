@@ -332,6 +332,36 @@
   .type-toggle-btn { flex: 1; padding: 10px; border-radius: var(--radius-md); border: 1.5px solid var(--border); background: var(--surface); color: var(--muted); font-weight: 700; font-size: 13px; cursor: pointer; font-family: inherit; transition: all 0.2s; }
   .type-toggle-btn.sel { border-color: var(--primary); background: var(--primary); color: #fff; }
 
+  /* Pengumuman */
+  .field textarea {
+    width: 100%; padding: 13px 16px; border-radius: var(--radius-md); border: 1px solid var(--border);
+    background: var(--surface); color: var(--ink); font-size: 14.5px; font-family: inherit; font-weight: 500;
+    resize: vertical; min-height: 96px; line-height: 1.5; transition: all 0.2s;
+  }
+  .field textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15); }
+  #announcements { display: none; flex-direction: column; gap: 14px; margin-bottom: 32px; }
+  .ann-head { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 800; color: var(--ink); letter-spacing: -0.1px; }
+  .ann-head svg { color: #F97316; }
+  .ann-count { background: var(--primary); color: #fff; font-size: 11px; font-weight: 800; padding: 1px 8px; border-radius: 100px; }
+  .anncard {
+    background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--ann-color, var(--primary));
+    border-radius: var(--radius-md); padding: 16px 18px; box-shadow: var(--shadow-sm);
+  }
+  .ann-top { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .ann-badge {
+    font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; padding: 3px 10px;
+    border-radius: 100px; background: var(--ann-bg, var(--bg)); color: var(--ann-color, var(--primary)); flex-shrink: 0;
+  }
+  .ann-date { font-size: 12px; color: var(--muted); font-weight: 600; margin-left: auto; }
+  .ann-title { font-size: 15.5px; font-weight: 800; margin: 0 0 6px; letter-spacing: -0.2px; line-height: 1.35; word-break: break-word; }
+  .ann-body { font-size: 13.5px; line-height: 1.6; color: var(--ink); white-space: pre-wrap; word-break: break-word; }
+  .ann-body.clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .ann-more, .ann-toggle { background: none; border: none; color: var(--primary); font-weight: 700; font-size: 12.5px; cursor: pointer; font-family: inherit; padding: 0; }
+  .ann-more { margin-top: 8px; }
+  .ann-toggle { align-self: center; padding: 8px 16px; border: 1px solid var(--border); border-radius: 100px; background: var(--surface); }
+  .ann-toggle:hover { border-color: var(--primary); }
+  #annTypeToggle .type-toggle-btn { padding: 9px 4px; font-size: 12.5px; }
+
   #toast {
     position: fixed;
     bottom: 24px;
@@ -379,6 +409,7 @@
       <select id="yearSelect"></select>
     </div>
   </div>
+  <section id="announcements" aria-label="Pengumuman"></section>
   <div id="banner"></div>
   <div id="empty" style="display:none;">
     <div class="big">
@@ -486,7 +517,29 @@
     </div>
     <button class="btn btn-ghost" id="addTextBtn" style="margin-bottom:20px;">+ Tambah Teks</button>
 
-    <div class="section-title">5. Keamanan Admin</div>
+    <div class="section-title" id="annSectionTitle">5. Pengumuman - <span style="color:var(--primary);" id="annYearLabel">-</span></div>
+    <div id="existingAnnList"></div>
+    <div class="type-toggle" id="annTypeToggle">
+      <button type="button" class="type-toggle-btn sel" data-type="info">Info</button>
+      <button type="button" class="type-toggle-btn" data-type="penting">Penting</button>
+      <button type="button" class="type-toggle-btn" data-type="mendesak">Mendesak</button>
+      <button type="button" class="type-toggle-btn" data-type="kegiatan">Kegiatan</button>
+    </div>
+    <div class="field">
+      <label>Judul Pengumuman</label>
+      <input id="annTitle" placeholder="Contoh: Libur Semester Ganjil" maxlength="120">
+    </div>
+    <div class="field">
+      <label>Isi Pengumuman</label>
+      <textarea id="annContent" rows="4" placeholder="Tulis isi pengumuman di sini..."></textarea>
+    </div>
+    <p class="err" id="annErr">Judul dan isi pengumuman wajib diisi.</p>
+    <div class="row" style="margin-bottom:8px;">
+      <button class="btn btn-primary" id="saveAnnBtn" style="flex:1;">+ Terbitkan Pengumuman</button>
+      <button class="btn btn-ghost" id="cancelAnnBtn" style="display:none; max-width:120px;">Batal</button>
+    </div>
+
+    <div class="section-title">6. Keamanan Admin</div>
     <div class="field">
       <label>Kata Sandi Baru</label>
       <input type="password" id="newPass" placeholder="Kosongkan jika tidak ingin mengubah">
@@ -688,7 +741,7 @@ function normalizeCfg(data){
         legacyButtons.forEach(b=>links.push({ label: b.label, icon: b.icon || "svg:link", type: "group", links: b.links || [] }));
         elements = elements.filter(e=>e.type !== "button");
       }
-      return { id: y.id || uid(), label: y.label || "Tahun Ajaran", links, elements };
+      return { id: y.id || uid(), label: y.label || "Tahun Ajaran", links, elements, announcements: Array.isArray(y.announcements) ? y.announcements.slice() : [] };
     });
   } else if(data && Array.isArray(data.links) && data.links.length > 0){
     out.years = [{ id: uid(), label: "Tahun Ajaran Aktif", links: data.links, elements: [] }];
@@ -862,6 +915,7 @@ function render(){
   const links = year ? year.links : [];
   grid.innerHTML = "";
   renderElements();
+  renderAnnouncements();
   if(!links || links.length === 0){
     empty.style.display = "block";
     return;
@@ -1196,7 +1250,7 @@ function renderYearChips(){
     chip.innerHTML = `<span>${escapeHtml(y.label)}</span>` + (cfg.years.length>1 ? '<span class="x" data-id="'+y.id+'">✕</span>' : "");
     chip.querySelector("span").onclick = ()=>{
       editingYearId = y.id;
-      cancelEditLink();
+      cancelEditLink(); cancelEditAnn();
       renderYearChips(); renderAdminList(); renderPreview();
     };
     const x = chip.querySelector(".x");
@@ -1226,7 +1280,7 @@ $("addYearBtn").onclick = ()=>{
   const label = $("newYearLabel").value.trim();
   if(!label){ $("yearErr").style.display="block"; return; }
   $("yearErr").style.display="none";
-  const newYear = { id: uid(), label, links: [], elements: [] };
+  const newYear = { id: uid(), label, links: [], elements: [], announcements: [] };
   cfg.years.push(newYear);
   editingYearId = newYear.id;
   $("newYearLabel").value = "";
@@ -1246,7 +1300,7 @@ function renderYearChips(){
     chip.innerHTML = `<span>${escapeHtml(y.label)}</span>` + (cfg.years.length>1 ? '<span class="x" data-id="'+y.id+'">✕</span>' : "");
     chip.querySelector("span").onclick = ()=>{
       editingYearId = y.id;
-      cancelEditLink();
+      cancelEditLink(); cancelEditAnn();
       renderYearChips(); renderAdminList(); renderPreview();
     };
     const x = chip.querySelector(".x");
@@ -1296,7 +1350,7 @@ function renderAdminList(){
   if(lbl && year) lbl.textContent = year.label;
   if(!links || links.length===0){
     list.innerHTML = '<div style="color:var(--muted);font-size:13.5px;padding:16px;text-align:center;background:var(--surface);border-radius:var(--radius-md);border:1px dashed var(--border);">Belum ada link di tahun ajaran ini.</div>';
-    renderElementsAdminList();
+    renderElementsAdminList(); renderAnnAdminList();
     return;
   }
   links.forEach((l, i)=>{
@@ -1326,7 +1380,7 @@ function renderAdminList(){
     };
     list.appendChild(row);
   });
-  renderElementsAdminList();
+  renderElementsAdminList(); renderAnnAdminList();
 }
 
 function showBanner(msg){
@@ -1349,7 +1403,7 @@ $("pwSubmit").onclick = ()=>{
 };
 $("pwInput").addEventListener("keydown", e=>{ if(e.key==="Enter") $("pwSubmit").click(); });
 
-$("adminClose").onclick = ()=>{ cancelEditLink(); closeModal("adminOverlay"); };
+$("adminClose").onclick = ()=>{ cancelEditLink(); cancelEditAnn(); closeModal("adminOverlay"); };
 $("adminOverlay").onclick = (e)=>{ if(e.target===$("adminOverlay")) closeModal("adminOverlay"); };
 
 $("previewBtn").onclick = ()=>{ renderPreview(); openModal("previewOverlay"); };
@@ -1477,6 +1531,168 @@ $("savePassBtn").onclick = ()=>{
     msg.style.display = "block";
     setTimeout(()=>{ msg.style.display = "none"; }, 3000);
   }
+};
+
+// ===== Pengumuman =====
+const ANN_TYPES = {
+  info:     { label: "Info",     color: "#0EA5E9", bg: "rgba(14, 165, 233, 0.12)" },
+  penting:  { label: "Penting",  color: "#F59E0B", bg: "rgba(245, 158, 11, 0.14)" },
+  mendesak: { label: "Mendesak", color: "#EF4444", bg: "rgba(239, 68, 68, 0.12)" },
+  kegiatan: { label: "Kegiatan", color: "#10B981", bg: "rgba(16, 185, 129, 0.12)" }
+};
+const ANN_LIMIT = 3;
+let annType = "info", editingAnnId = null, annShowAll = false;
+const annExpanded = new Set();
+
+function getAnnList(year){
+  if(!year) return [];
+  if(!Array.isArray(year.announcements)) year.announcements = [];
+  return year.announcements;
+}
+function sortedAnn(year){
+  return getAnnList(year).slice().sort((a,b)=> String(b.date || "").localeCompare(String(a.date || "")));
+}
+function formatAnnDate(iso){
+  try{
+    const d = new Date(iso);
+    if(isNaN(d)) return "";
+    return d.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+  }catch(e){ return ""; }
+}
+
+function renderAnnouncements(){
+  const box = $("announcements");
+  if(!box) return;
+  const list = sortedAnn(getViewerYear());
+  box.innerHTML = "";
+  if(!list.length){ box.style.display = "none"; return; }
+  box.style.display = "flex";
+
+  const head = document.createElement("div");
+  head.className = "ann-head";
+  head.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS.bell.svg}</svg><span>Pengumuman</span><span class="ann-count">${list.length}</span>`;
+  box.appendChild(head);
+
+  const shown = annShowAll ? list : list.slice(0, ANN_LIMIT);
+  shown.forEach(a=>{
+    const t = ANN_TYPES[a.type] || ANN_TYPES.info;
+    const content = a.content || "";
+    const long = content.length > 150 || content.split("\n").length > 3;
+    const open = annExpanded.has(a.id);
+    const card = document.createElement("article");
+    card.className = "anncard";
+    card.style.setProperty("--ann-color", t.color);
+    card.style.setProperty("--ann-bg", t.bg);
+    card.innerHTML = `
+      <div class="ann-top"><span class="ann-badge">${t.label}</span><span class="ann-date">${escapeHtml(formatAnnDate(a.date))}</span></div>
+      <h3 class="ann-title">${escapeHtml(a.title || "")}</h3>
+      <div class="ann-body${long && !open ? " clamp" : ""}">${escapeHtml(content)}</div>
+      ${long ? `<button type="button" class="ann-more">${open ? "Tutup" : "Selengkapnya"}</button>` : ""}`;
+    const more = card.querySelector(".ann-more");
+    if(more) more.onclick = ()=>{ if(open) annExpanded.delete(a.id); else annExpanded.add(a.id); renderAnnouncements(); };
+    box.appendChild(card);
+  });
+
+  if(list.length > ANN_LIMIT){
+    const tg = document.createElement("button");
+    tg.type = "button";
+    tg.className = "ann-toggle";
+    tg.textContent = annShowAll ? "Tampilkan lebih sedikit" : "Lihat " + (list.length - ANN_LIMIT) + " pengumuman lainnya";
+    tg.onclick = ()=>{ annShowAll = !annShowAll; renderAnnouncements(); };
+    box.appendChild(tg);
+  }
+}
+
+function setAnnType(t){
+  annType = t;
+  $("annTypeToggle").querySelectorAll(".type-toggle-btn").forEach(b=>b.classList.toggle("sel", b.dataset.type === t));
+}
+$("annTypeToggle").querySelectorAll(".type-toggle-btn").forEach(b=>{ b.onclick = ()=> setAnnType(b.dataset.type); });
+
+function renderAnnAdminList(){
+  const list = $("existingAnnList");
+  if(!list) return;
+  const year = getEditingYear();
+  const lbl = $("annYearLabel");
+  if(lbl && year) lbl.textContent = year.label;
+  const items = sortedAnn(year);
+  list.innerHTML = "";
+  if(!items.length){
+    list.innerHTML = '<div style="color:var(--muted);font-size:13.5px;padding:16px;text-align:center;background:var(--surface);border-radius:var(--radius-md);border:1px dashed var(--border);margin-bottom:16px;">Belum ada pengumuman di tahun ajaran ini.</div>';
+    return;
+  }
+  items.forEach(a=>{
+    const t = ANN_TYPES[a.type] || ANN_TYPES.info;
+    const row = document.createElement("div");
+    row.className = "existing";
+    row.innerHTML = `
+      <span class="ann-badge" style="--ann-color:${t.color}; --ann-bg:${t.bg};">${t.label}</span>
+      <span class="meta"><span class="lb">${escapeHtml(a.title || "")}</span><span class="url">${escapeHtml(formatAnnDate(a.date))}</span></span>
+      <div class="existing-actions">
+        <button class="btn-icon edit" aria-label="Edit"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+        <button class="btn-icon del" aria-label="Hapus"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+      </div>`;
+    row.querySelector(".edit").onclick = ()=> startEditAnn(a.id);
+    const del = row.querySelector(".del");
+    del.onclick = ()=>{
+      if(del.dataset.armed !== "1"){
+        del.dataset.armed = "1"; del.textContent = "?";
+        setTimeout(()=>{ if(del.isConnected) renderAnnAdminList(); }, 3000);
+        return;
+      }
+      const yr = getEditingYear();
+      yr.announcements = getAnnList(yr).filter(x=>x.id !== a.id);
+      if(editingAnnId === a.id) cancelEditAnn();
+      saveConfig("Pengumuman dihapus.");
+      renderAnnAdminList(); renderAnnouncements();
+    };
+    list.appendChild(row);
+  });
+}
+
+function startEditAnn(id){
+  const a = getAnnList(getEditingYear()).find(x=>x.id === id);
+  if(!a) return;
+  editingAnnId = id;
+  setAnnType(a.type in ANN_TYPES ? a.type : "info");
+  $("annTitle").value = a.title || "";
+  $("annContent").value = a.content || "";
+  $("annErr").style.display = "none";
+  $("annSectionTitle").innerHTML = "5. Edit Pengumuman — <span style=\"color:var(--primary);\">" + escapeHtml(a.title || "") + "</span>";
+  $("saveAnnBtn").textContent = "✓ Perbarui Pengumuman";
+  $("cancelAnnBtn").style.display = "inline-flex";
+  $("annTitle").scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+function cancelEditAnn(){
+  editingAnnId = null;
+  $("annTitle").value = ""; $("annContent").value = "";
+  $("annErr").style.display = "none";
+  setAnnType("info");
+  $("annSectionTitle").innerHTML = '5. Pengumuman - <span style="color:var(--primary);" id="annYearLabel">' + escapeHtml((getEditingYear() || {}).label || "-") + '</span>';
+  $("saveAnnBtn").textContent = "+ Terbitkan Pengumuman";
+  $("cancelAnnBtn").style.display = "none";
+}
+$("cancelAnnBtn").onclick = cancelEditAnn;
+
+$("saveAnnBtn").onclick = ()=>{
+  const title = $("annTitle").value.trim();
+  const content = $("annContent").value.trim();
+  if(!title || !content){ $("annErr").style.display = "block"; return; }
+  $("annErr").style.display = "none";
+  const year = getEditingYear();
+  const list = getAnnList(year);
+  const existing = editingAnnId ? list.find(x=>x.id === editingAnnId) : null;
+  if(existing){
+    existing.title = title; existing.content = content; existing.type = annType;
+    cancelEditAnn();
+    saveConfig("Pengumuman berhasil diperbarui!");
+  } else {
+    list.push({ id: uid(), type: annType, title, content, date: new Date().toISOString() });
+    cancelEditAnn();
+    saveConfig("Pengumuman berhasil diterbitkan!", "📢");
+  }
+  renderAnnAdminList(); renderAnnouncements();
 };
 
 async function init(){
