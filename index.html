@@ -285,6 +285,54 @@
   .pv-card .lb { font-size: 8px; font-weight: 700; line-height: 1.2; color: var(--ink); }
   .device-label { text-align: center; font-size: 12px; color: var(--muted); font-weight: 700; margin-top: 10px; }
 
+  /* Free-position elements: draggable text & multi-link buttons */
+  #freeArea { position: relative; width: 100%; margin-top: 4px; }
+  .free-el { position: absolute; transform: translate(-50%, -50%); max-width: 90%; touch-action: none; }
+  .free-text { font-size: 16px; font-weight: 700; color: var(--ink); padding: 4px 10px; border-radius: 10px; white-space: pre-wrap; word-break: break-word; text-align: center; }
+  .free-btngroup { position: relative; }
+  .free-btngroup > .fb-trigger {
+    padding: 12px 20px; border-radius: 100px; border: none; background: var(--primary); color: var(--primary-ink);
+    font-size: 14px; font-weight: 700; font-family: inherit; cursor: pointer; box-shadow: 0 4px 12px rgba(79,70,229,0.25);
+    display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; transition: all .2s;
+  }
+  .free-btngroup > .fb-trigger:hover { background: var(--primary-hover); }
+  .link-popover {
+    position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg); padding: 8px; min-width: 200px; max-width: 260px;
+    display: none; flex-direction: column; gap: 4px; z-index: 60;
+  }
+  .link-popover.show { display: flex; }
+  .link-popover a {
+    display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px;
+    color: var(--ink); text-decoration: none; font-size: 13.5px; font-weight: 600; transition: background .15s;
+  }
+  .link-popover a:hover { background: var(--bg); }
+  .link-popover a .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--primary); flex-shrink: 0; }
+
+  .free-el.editable { cursor: grab; outline: 2px dashed var(--primary); outline-offset: 4px; border-radius: 10px; }
+  .free-el.editable:active { cursor: grabbing; }
+  .free-el .fe-del {
+    position: absolute; top: -12px; right: -12px; width: 24px; height: 24px; border-radius: 50%;
+    background: var(--danger); color: #fff; border: 2px solid var(--surface); font-size: 12px; font-weight: 800;
+    display: none; align-items: center; justify-content: center; cursor: pointer; z-index: 5;
+  }
+  .free-el.editable .fe-del { display: flex; }
+
+  #editModeBar {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 150;
+    background: #0F172A; color: #fff; padding: 12px 20px; border-radius: 100px; display: none;
+    align-items: center; gap: 14px; font-size: 13.5px; font-weight: 700; box-shadow: 0 10px 30px rgba(0,0,0,.35);
+  }
+  #editModeBar.show { display: flex; }
+  #editModeBar button { background: var(--primary); color: #fff; border: none; padding: 8px 14px; border-radius: 100px; font-weight: 700; font-size: 12.5px; cursor: pointer; font-family: inherit; }
+
+  /* Admin: custom elements list & builder */
+  .existing.el-row .type-badge { font-size: 10px; font-weight: 800; text-transform: uppercase; padding: 3px 8px; border-radius: 100px; background: var(--bg); color: var(--muted); flex-shrink: 0; }
+  .linkrow-mini { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+  .linkrow-mini input { flex: 1; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); font-size: 13.5px; font-family: inherit; }
+  .linkrow-mini .rm-row { background: var(--bg); border: 1px solid var(--border); color: var(--danger); width: 34px; height: 34px; border-radius: 10px; cursor: pointer; flex-shrink: 0; }
+
   #toast {
     position: fixed;
     bottom: 24px;
@@ -340,6 +388,7 @@
     <div>Belum ada link yang ditambahkan.<br>Buka <strong>Pengaturan</strong> untuk mulai mengatur portal.</div>
   </div>
   <div id="grid"></div>
+  <div id="freeArea"></div>
 </main>
 
 <!-- password modal -->
@@ -403,7 +452,31 @@
       <button class="btn btn-ghost" id="cancelEditBtn" style="display:none; max-width:120px;">Batal</button>
     </div>
 
-    <div class="section-title">4. Keamanan Admin</div>
+    <div class="section-title">4. Teks &amp; Tombol Kustom</div>
+    <button class="btn btn-ghost" id="toggleEditModeBtn" style="margin-bottom:14px;">🖐️ Aktifkan Mode Edit Posisi di Halaman</button>
+    <div id="existingElList"></div>
+
+    <div class="row">
+      <div class="field">
+        <label>Tambah Teks Baru (bisa digeser di halaman)</label>
+        <input id="newTextContent" placeholder="Contoh: Selamat Datang di Portal Kami!">
+      </div>
+    </div>
+    <button class="btn btn-ghost" id="addTextBtn" style="margin-bottom:20px;">+ Tambah Teks</button>
+
+    <div class="field">
+      <label>Tambah Tombol Berisi Beberapa Link Sekaligus</label>
+      <input id="newBtnLabel" placeholder="Judul tombol, contoh: Media Sosial">
+    </div>
+    <div id="btnLinkRows"></div>
+    <button class="btn btn-ghost" id="addBtnLinkRowBtn" style="margin-bottom:10px;">+ Tambah Baris Link</button>
+    <p class="err" id="btnGroupErr">Judul tombol dan minimal 1 link (nama &amp; URL) wajib diisi.</p>
+    <div class="row" id="btnGroupFormRow">
+      <button class="btn btn-primary" id="saveBtnGroupBtn" style="flex:1;">+ Simpan Tombol</button>
+      <button class="btn btn-ghost" id="cancelBtnGroupBtn" style="display:none; max-width:120px;">Batal</button>
+    </div>
+
+    <div class="section-title">5. Keamanan Admin</div>
     <div class="field">
       <label>Kata Sandi Baru</label>
       <input type="password" id="newPass" placeholder="Kosongkan jika tidak ingin mengubah">
@@ -435,6 +508,11 @@
   <span id="toastMsg">Perubahan berhasil disimpan!</span>
 </div>
 
+<div id="editModeBar">
+  <span>🖐️ Mode Edit Posisi Aktif — seret elemen untuk memindahkan</span>
+  <button id="exitEditModeBtn">Selesai</button>
+</div>
+
 <script>
 let db = null, user = null;
 let cfg = { password: "admin123", years: [] };
@@ -443,6 +521,9 @@ let selectedIcon = null;
 let editingYearId = null;
 let viewerYearId = null;
 let editingLinkIndex = null;
+let editMode = false;
+let editingElementId = null;
+let btnGroupRows = [{ label: "", url: "" }];
 
 const LOCAL_STORAGE_KEY = "smk_widya_mandala_config_v1";
 
@@ -581,12 +662,13 @@ function normalizeCfg(data){
     out.years = data.years.map(y=>({ 
       id: y.id || uid(), 
       label: y.label || "Tahun Ajaran", 
-      links: Array.isArray(y.links) && y.links.length > 0 ? y.links : (y.label === "2025/2026" ? DEFAULT_LINKS_2025_2026 : [])
+      links: Array.isArray(y.links) && y.links.length > 0 ? y.links : (y.label === "2025/2026" ? DEFAULT_LINKS_2025_2026 : []),
+      elements: Array.isArray(y.elements) ? y.elements : []
     }));
   } else if(data && Array.isArray(data.links) && data.links.length > 0){
-    out.years = [{ id: uid(), label: "Tahun Ajaran Aktif", links: data.links }];
+    out.years = [{ id: uid(), label: "Tahun Ajaran Aktif", links: data.links, elements: [] }];
   } else {
-    out.years = [{ id: uid(), label: "2025/2026", links: DEFAULT_LINKS_2025_2026 }];
+    out.years = [{ id: uid(), label: "2025/2026", links: DEFAULT_LINKS_2025_2026, elements: [] }];
   }
   return out;
 }
@@ -754,6 +836,7 @@ function render(){
   const year = getViewerYear();
   const links = year ? year.links : [];
   grid.innerHTML = "";
+  renderElements();
   if(!links || links.length === 0){
     empty.style.display = "block";
     return;
@@ -773,6 +856,236 @@ function render(){
     grid.appendChild(a);
   });
 }
+
+function closeAllPopovers(){
+  document.querySelectorAll(".link-popover.show").forEach(p=>p.classList.remove("show"));
+}
+document.addEventListener("click", (e)=>{
+  if(!e.target.closest(".free-btngroup")) closeAllPopovers();
+});
+
+function renderElements(){
+  const area = $("freeArea");
+  if(!area) return;
+  const year = getViewerYear();
+  const elements = (year && Array.isArray(year.elements)) ? year.elements : [];
+  area.innerHTML = "";
+  area.style.minHeight = elements.length ? "220px" : "0";
+
+  elements.forEach(el=>{
+    const wrap = document.createElement("div");
+    wrap.className = "free-el" + (editMode ? " editable" : "");
+    wrap.style.left = (el.x != null ? el.x : 50) + "%";
+    wrap.style.top = (el.y != null ? el.y : 50) + "%";
+    wrap.dataset.id = el.id;
+
+    if(el.type === "text"){
+      const t = document.createElement("div");
+      t.className = "free-text";
+      if(el.fontSize) t.style.fontSize = el.fontSize + "px";
+      t.textContent = el.content || "";
+      wrap.appendChild(t);
+    } else if(el.type === "button"){
+      const grp = document.createElement("div");
+      grp.className = "free-btngroup";
+      const trig = document.createElement("button");
+      trig.type = "button";
+      trig.className = "fb-trigger";
+      trig.innerHTML = `<span>${escapeHtml(el.label || "Tombol")}</span>`;
+      const pop = document.createElement("div");
+      pop.className = "link-popover";
+      (el.links || []).forEach(l=>{
+        const a = document.createElement("a");
+        a.href = l.url; a.target = "_blank"; a.rel = "noopener noreferrer";
+        a.innerHTML = `<span class="dot"></span><span>${escapeHtml(l.label)}</span>`;
+        pop.appendChild(a);
+      });
+      trig.onclick = (e)=>{
+        if(editMode) return;
+        e.stopPropagation();
+        const isShown = pop.classList.contains("show");
+        closeAllPopovers();
+        if(!isShown) pop.classList.add("show");
+      };
+      grp.appendChild(trig); grp.appendChild(pop);
+      wrap.appendChild(grp);
+    }
+
+    if(editMode){
+      const del = document.createElement("div");
+      del.className = "fe-del";
+      del.textContent = "✕";
+      del.onclick = (e)=>{
+        e.stopPropagation();
+        const yr = getViewerYear();
+        yr.elements = (yr.elements || []).filter(x=>x.id !== el.id);
+        saveConfig("Elemen dihapus.");
+        renderElements(); renderElementsAdminList();
+      };
+      wrap.appendChild(del);
+      attachDrag(wrap, el);
+    }
+
+    area.appendChild(wrap);
+  });
+}
+
+function attachDrag(wrap, elObj){
+  let dragging = false;
+  wrap.addEventListener("pointerdown", (e)=>{
+    if(e.target.classList.contains("fe-del")) return;
+    dragging = true;
+    try{ wrap.setPointerCapture(e.pointerId); }catch(err){}
+    e.preventDefault();
+  });
+  wrap.addEventListener("pointermove", (e)=>{
+    if(!dragging) return;
+    const area = $("freeArea");
+    const rect = area.getBoundingClientRect();
+    let xPct = ((e.clientX - rect.left) / rect.width) * 100;
+    let yPct = ((e.clientY - rect.top) / rect.height) * 100;
+    xPct = Math.max(2, Math.min(98, xPct));
+    yPct = Math.max(6, Math.min(94, yPct));
+    wrap.style.left = xPct + "%";
+    wrap.style.top = yPct + "%";
+    elObj.x = xPct; elObj.y = yPct;
+  });
+  const stop = ()=>{
+    if(!dragging) return;
+    dragging = false;
+    saveConfig("Posisi elemen diperbarui.");
+  };
+  wrap.addEventListener("pointerup", stop);
+  wrap.addEventListener("pointercancel", stop);
+}
+
+function renderElementsAdminList(){
+  const list = $("existingElList");
+  if(!list) return;
+  const year = getEditingYear();
+  const elements = year && Array.isArray(year.elements) ? year.elements : [];
+  list.innerHTML = "";
+  if(!elements.length){
+    list.innerHTML = '<div style="color:var(--muted);font-size:13.5px;padding:16px;text-align:center;background:var(--surface);border-radius:var(--radius-md);border:1px dashed var(--border);margin-bottom:16px;">Belum ada teks atau tombol kustom di tahun ajaran ini.</div>';
+    return;
+  }
+  elements.forEach((el)=>{
+    const row = document.createElement("div");
+    row.className = "existing el-row";
+    const preview = el.type === "text" ? (el.content || "") : (el.label || "") + " (" + ((el.links || []).length) + " link)";
+    row.innerHTML = `
+      <span class="type-badge">${el.type === "text" ? "Teks" : "Tombol"}</span>
+      <span class="meta"><span class="lb">${escapeHtml(preview)}</span></span>
+      <div class="existing-actions">
+        ${el.type === "button" ? '<button class="btn-icon edit" aria-label="Edit"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>' : ''}
+        <button class="btn-icon del" aria-label="Hapus"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg></button>
+      </div>`;
+    const editBtn = row.querySelector(".edit");
+    if(editBtn){
+      editBtn.onclick = ()=>{
+        editingElementId = el.id;
+        $("newBtnLabel").value = el.label || "";
+        btnGroupRows = (el.links || []).map(l=>({ label: l.label, url: l.url }));
+        if(!btnGroupRows.length) btnGroupRows = [{ label: "", url: "" }];
+        renderBtnLinkRows();
+        $("btnGroupErr").style.display = "none";
+        $("saveBtnGroupBtn").textContent = "✓ Perbarui Tombol";
+        $("cancelBtnGroupBtn").style.display = "inline-flex";
+      };
+    }
+    row.querySelector(".del").onclick = ()=>{
+      const yr = getEditingYear();
+      yr.elements = yr.elements.filter(x=>x.id !== el.id);
+      if(editingElementId === el.id) resetBtnGroupForm();
+      saveConfig("Elemen dihapus."); renderElementsAdminList(); renderElements();
+    };
+    list.appendChild(row);
+  });
+}
+
+function renderBtnLinkRows(){
+  const wrap = $("btnLinkRows");
+  if(!wrap) return;
+  wrap.innerHTML = "";
+  btnGroupRows.forEach((row, i)=>{
+    const div = document.createElement("div");
+    div.className = "linkrow-mini";
+    div.innerHTML = `<input placeholder="Nama link" data-f="label" value="${escapeHtml(row.label || "")}"><input placeholder="https://..." data-f="url" value="${escapeHtml(row.url || "")}"><button type="button" class="rm-row" aria-label="Hapus baris">✕</button>`;
+    div.querySelector('[data-f="label"]').oninput = (e)=> row.label = e.target.value;
+    div.querySelector('[data-f="url"]').oninput = (e)=> row.url = e.target.value;
+    div.querySelector(".rm-row").onclick = ()=>{
+      btnGroupRows.splice(i, 1);
+      if(!btnGroupRows.length) btnGroupRows = [{ label: "", url: "" }];
+      renderBtnLinkRows();
+    };
+    wrap.appendChild(div);
+  });
+}
+
+function resetBtnGroupForm(){
+  editingElementId = null;
+  $("newBtnLabel").value = "";
+  btnGroupRows = [{ label: "", url: "" }];
+  renderBtnLinkRows();
+  $("btnGroupErr").style.display = "none";
+  $("saveBtnGroupBtn").textContent = "+ Simpan Tombol";
+  $("cancelBtnGroupBtn").style.display = "none";
+}
+
+$("addBtnLinkRowBtn").onclick = ()=>{ btnGroupRows.push({ label: "", url: "" }); renderBtnLinkRows(); };
+$("cancelBtnGroupBtn").onclick = resetBtnGroupForm;
+
+$("saveBtnGroupBtn").onclick = ()=>{
+  const label = $("newBtnLabel").value.trim();
+  const links = btnGroupRows
+    .map(r=>({ label: (r.label || "").trim(), url: (r.url || "").trim() }))
+    .filter(r=>r.label && r.url);
+  if(!label || links.length === 0){ $("btnGroupErr").style.display = "block"; return; }
+  $("btnGroupErr").style.display = "none";
+  links.forEach(l=>{ if(!/^https?:\/\//i.test(l.url)) l.url = "https://" + l.url; });
+
+  const year = getEditingYear();
+  year.elements = year.elements || [];
+  if(editingElementId){
+    const idx = year.elements.findIndex(x=>x.id === editingElementId);
+    if(idx >= 0){ year.elements[idx].label = label; year.elements[idx].links = links; }
+    resetBtnGroupForm();
+    saveConfig("Tombol berhasil diperbarui.");
+  } else {
+    year.elements.push({ id: uid(), type: "button", label, links, x: 50, y: 50 });
+    resetBtnGroupForm();
+    saveConfig("Tombol berhasil disimpan.");
+  }
+  renderElementsAdminList(); renderElements();
+};
+
+$("addTextBtn").onclick = ()=>{
+  const content = $("newTextContent").value.trim();
+  if(!content) return;
+  const year = getEditingYear();
+  year.elements = year.elements || [];
+  year.elements.push({ id: uid(), type: "text", content, x: 50, y: 50, fontSize: 16 });
+  $("newTextContent").value = "";
+  saveConfig("Teks berhasil ditambahkan."); renderElementsAdminList(); renderElements();
+};
+
+$("toggleEditModeBtn").onclick = ()=>{
+  editMode = !editMode;
+  if(editMode){
+    viewerYearId = editingYearId;
+    storeYear(viewerYearId);
+    closeModal("adminOverlay");
+    $("editModeBar").classList.add("show");
+  } else {
+    $("editModeBar").classList.remove("show");
+  }
+  renderYearSelect(); render();
+};
+$("exitEditModeBtn").onclick = ()=>{
+  editMode = false;
+  $("editModeBar").classList.remove("show");
+  render();
+};
 
 function renderYearSelect(){
   const sel = $("yearSelect");
@@ -835,7 +1148,7 @@ $("addYearBtn").onclick = ()=>{
   const label = $("newYearLabel").value.trim();
   if(!label){ $("yearErr").style.display="block"; return; }
   $("yearErr").style.display="none";
-  const newYear = { id: uid(), label, links: [] };
+  const newYear = { id: uid(), label, links: [], elements: [] };
   cfg.years.push(newYear);
   editingYearId = newYear.id;
   $("newYearLabel").value = "";
@@ -932,6 +1245,7 @@ function renderAdminList(){
     };
     list.appendChild(row);
   });
+  renderElementsAdminList();
 }
 
 function showBanner(msg){
@@ -954,7 +1268,7 @@ $("pwSubmit").onclick = ()=>{
 };
 $("pwInput").addEventListener("keydown", e=>{ if(e.key==="Enter") $("pwSubmit").click(); });
 
-$("adminClose").onclick = ()=>{ cancelEditLink(); closeModal("adminOverlay"); };
+$("adminClose").onclick = ()=>{ cancelEditLink(); resetBtnGroupForm(); closeModal("adminOverlay"); };
 $("adminOverlay").onclick = (e)=>{ if(e.target===$("adminOverlay")) closeModal("adminOverlay"); };
 
 $("previewBtn").onclick = ()=>{ renderPreview(); openModal("previewOverlay"); };
@@ -1038,6 +1352,7 @@ $("savePassBtn").onclick = ()=>{
 
 async function init(){
   buildIconPicker();
+  renderBtnLinkRows();
   cfg = normalizeCfg(loadFromLocalStorage());
   viewerYearId = readStoredYear();
   renderYearSelect();
