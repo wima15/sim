@@ -289,26 +289,6 @@
   #freeArea { position: relative; width: 100%; margin-top: 4px; }
   .free-el { position: absolute; transform: translate(-50%, -50%); max-width: 90%; touch-action: none; }
   .free-text { font-size: 16px; font-weight: 700; color: var(--ink); padding: 4px 10px; border-radius: 10px; white-space: pre-wrap; word-break: break-word; text-align: center; }
-  .free-btngroup { position: relative; }
-  .free-btngroup > .fb-trigger {
-    padding: 12px 20px; border-radius: 100px; border: none; background: var(--primary); color: var(--primary-ink);
-    font-size: 14px; font-weight: 700; font-family: inherit; cursor: pointer; box-shadow: 0 4px 12px rgba(79,70,229,0.25);
-    display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; transition: all .2s;
-  }
-  .free-btngroup > .fb-trigger:hover { background: var(--primary-hover); }
-  .link-popover {
-    position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%);
-    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
-    box-shadow: var(--shadow-lg); padding: 8px; min-width: 200px; max-width: 260px;
-    display: none; flex-direction: column; gap: 4px; z-index: 60;
-  }
-  .link-popover.show { display: flex; }
-  .link-popover a {
-    display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px;
-    color: var(--ink); text-decoration: none; font-size: 13.5px; font-weight: 600; transition: background .15s;
-  }
-  .link-popover a:hover { background: var(--bg); }
-  .link-popover a .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--primary); flex-shrink: 0; }
 
   .free-el.editable { cursor: grab; outline: 2px dashed var(--primary); outline-offset: 4px; border-radius: 10px; }
   .free-el.editable:active { cursor: grabbing; }
@@ -332,6 +312,25 @@
   .linkrow-mini { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
   .linkrow-mini input { flex: 1; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); font-size: 13.5px; font-family: inherit; }
   .linkrow-mini .rm-row { background: var(--bg); border: 1px solid var(--border); color: var(--danger); width: 34px; height: 34px; border-radius: 10px; cursor: pointer; flex-shrink: 0; }
+
+  .icon-select { position: relative; flex-shrink: 0; }
+  .icon-select-trigger { background: var(--surface); border: 1.5px solid var(--border); border-radius: 12px; padding: 4px; cursor: pointer; display: flex; }
+  .icon-select-trigger:hover { border-color: var(--primary); }
+  .icon-select-pop {
+    display: none; position: absolute; top: calc(100% + 6px); left: 0; z-index: 70;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
+    padding: 8px; width: 190px; grid-template-columns: repeat(5, 1fr); gap: 6px;
+  }
+  .icon-select-pop.show { display: grid; }
+  .icswatch-mini { border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg); padding: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .icswatch-mini:hover { border-color: var(--primary); }
+  .icswatch-mini.sel { border-color: var(--primary); background: rgba(79, 70, 229, 0.12); }
+  .icon-select-emoji { grid-column: 1 / -1; margin-top: 4px; }
+  .icon-select-emoji input { width: 100%; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--ink); font-size: 13px; font-family: inherit; }
+
+  .type-toggle { display: flex; gap: 8px; margin-bottom: 16px; }
+  .type-toggle-btn { flex: 1; padding: 10px; border-radius: var(--radius-md); border: 1.5px solid var(--border); background: var(--surface); color: var(--muted); font-weight: 700; font-size: 13px; cursor: pointer; font-family: inherit; transition: all 0.2s; }
+  .type-toggle-btn.sel { border-color: var(--primary); background: var(--primary); color: #fff; }
 
   #toast {
     position: fixed;
@@ -424,57 +423,68 @@
     <p class="err" id="yearErr">Nama tahun ajaran wajib diisi.</p>
     <button class="btn btn-ghost" id="addYearBtn">+ Tambah Tahun Ajaran</button>
 
-    <div class="section-title">2. Daftar Link - <span id="editingYearLabel" style="color:var(--primary);">-</span></div>
+    <div class="section-title">2. Daftar Link &amp; Tombol - <span id="editingYearLabel" style="color:var(--primary);">-</span></div>
     <div id="existingList"></div>
 
-    <div class="section-title" id="formSectionTitle">3. Tambah Link Baru</div>
-    <div class="field">
-      <label>Pilih Ikon Layanan</label>
-      <div id="iconPicker"></div>
+    <div class="section-title" id="formSectionTitle">3. Tambah Item Baru</div>
+    <div class="type-toggle" id="itemTypeToggle">
+      <button type="button" class="type-toggle-btn sel" data-type="link">Link Tunggal</button>
+      <button type="button" class="type-toggle-btn" data-type="group">Tombol (Banyak Link)</button>
     </div>
-    <div class="row">
-      <div class="field" style="max-width:110px;">
-        <label>Atau Emoji</label>
-        <input id="newIcon" placeholder="😀" maxlength="2">
+
+    <div id="singleLinkFields">
+      <div class="field">
+        <label>Pilih Ikon Layanan</label>
+        <div id="iconPicker"></div>
+      </div>
+      <div class="row">
+        <div class="field" style="max-width:110px;">
+          <label>Atau Emoji</label>
+          <input id="newIcon" placeholder="😀" maxlength="2">
+        </div>
+        <div class="field">
+          <label>Nama Layanan / Aplikasi</label>
+          <input id="newLabel" placeholder="Contoh: E-Raport Siswa">
+        </div>
       </div>
       <div class="field">
-        <label>Nama Layanan / Aplikasi</label>
-        <input id="newLabel" placeholder="Contoh: E-Raport Siswa">
+        <label>URL / Tautan Web</label>
+        <input id="newUrl" placeholder="https://...">
       </div>
     </div>
-    <div class="field">
-      <label>URL / Tautan Web</label>
-      <input id="newUrl" placeholder="https://...">
+
+    <div id="groupFields" style="display:none;">
+      <div class="row">
+        <div class="field" style="max-width:60px;">
+          <label>Ikon</label>
+          <div id="btnIconSelectWrap"></div>
+        </div>
+        <div class="field">
+          <label>Judul Tombol</label>
+          <input id="newBtnLabel" placeholder="Contoh: Media Sosial">
+        </div>
+      </div>
+      <div id="btnLinkRows"></div>
+      <button class="btn btn-ghost" id="addBtnLinkRowBtn" style="margin-bottom:10px;">+ Tambah Baris Link</button>
     </div>
+
     <p class="err" id="addErr">Nama dan URL wajib diisi.</p>
+    <p class="err" id="btnGroupErr">Judul tombol dan minimal 1 link (nama &amp; URL) wajib diisi.</p>
     <div class="row" id="formBtnRow">
-      <button class="btn btn-primary" id="addBtn" style="flex:1;">+ Simpan Link ke Portal</button>
+      <button class="btn btn-primary" id="addBtn" style="flex:1;">+ Simpan ke Portal</button>
       <button class="btn btn-ghost" id="cancelEditBtn" style="display:none; max-width:120px;">Batal</button>
     </div>
 
-    <div class="section-title">4. Teks &amp; Tombol Kustom</div>
-    <button class="btn btn-ghost" id="toggleEditModeBtn" style="margin-bottom:14px;">🖐️ Aktifkan Mode Edit Posisi di Halaman</button>
+    <div class="section-title">4. Teks Kustom (Bisa Digeser)</div>
+    <button class="btn btn-ghost" id="toggleEditModeBtn" style="margin-bottom:14px;">🖐️ Aktifkan Mode Edit Posisi Teks</button>
     <div id="existingElList"></div>
-
     <div class="row">
       <div class="field">
-        <label>Tambah Teks Baru (bisa digeser di halaman)</label>
+        <label>Tambah Teks Baru</label>
         <input id="newTextContent" placeholder="Contoh: Selamat Datang di Portal Kami!">
       </div>
     </div>
     <button class="btn btn-ghost" id="addTextBtn" style="margin-bottom:20px;">+ Tambah Teks</button>
-
-    <div class="field">
-      <label>Tambah Tombol Berisi Beberapa Link Sekaligus</label>
-      <input id="newBtnLabel" placeholder="Judul tombol, contoh: Media Sosial">
-    </div>
-    <div id="btnLinkRows"></div>
-    <button class="btn btn-ghost" id="addBtnLinkRowBtn" style="margin-bottom:10px;">+ Tambah Baris Link</button>
-    <p class="err" id="btnGroupErr">Judul tombol dan minimal 1 link (nama &amp; URL) wajib diisi.</p>
-    <div class="row" id="btnGroupFormRow">
-      <button class="btn btn-primary" id="saveBtnGroupBtn" style="flex:1;">+ Simpan Tombol</button>
-      <button class="btn btn-ghost" id="cancelBtnGroupBtn" style="display:none; max-width:120px;">Batal</button>
-    </div>
 
     <div class="section-title">5. Keamanan Admin</div>
     <div class="field">
@@ -503,6 +513,14 @@
   </div>
 </div>
 
+<!-- link group overlay: opens when a button-card is clicked, shows only its own links -->
+<div class="overlay" id="linkGroupOverlay">
+  <div class="sheet" style="background:var(--surface);">
+    <div class="top-row"><h2 id="lgTitle">Tombol</h2><button class="closeX" id="lgClose">✕</button></div>
+    <div id="lgGrid" style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px;"></div>
+  </div>
+</div>
+
 <div id="toast">
   <span id="toastIcon">✨</span>
   <span id="toastMsg">Perubahan berhasil disimpan!</span>
@@ -522,8 +540,9 @@ let editingYearId = null;
 let viewerYearId = null;
 let editingLinkIndex = null;
 let editMode = false;
-let editingElementId = null;
-let btnGroupRows = [{ label: "", url: "" }];
+let currentAddType = "link";
+let selectedBtnIcon = "svg:link";
+let btnGroupRows = [{ label: "", url: "", icon: "svg:link" }];
 
 const LOCAL_STORAGE_KEY = "smk_widya_mandala_config_v1";
 
@@ -659,12 +678,18 @@ function uid(){ return "y" + Date.now().toString(36) + Math.random().toString(36
 function normalizeCfg(data){
   const out = { password: (data && data.password) || "admin123", years: [] };
   if(data && Array.isArray(data.years) && data.years.length){
-    out.years = data.years.map(y=>({ 
-      id: y.id || uid(), 
-      label: y.label || "Tahun Ajaran", 
-      links: Array.isArray(y.links) && y.links.length > 0 ? y.links : (y.label === "2025/2026" ? DEFAULT_LINKS_2025_2026 : []),
-      elements: Array.isArray(y.elements) ? y.elements : []
-    }));
+    out.years = data.years.map(y=>{
+      let links = Array.isArray(y.links) && y.links.length > 0 ? y.links.slice() : (y.label === "2025/2026" ? DEFAULT_LINKS_2025_2026.slice() : []);
+      let elements = Array.isArray(y.elements) ? y.elements.slice() : [];
+      // Backward-compat: older versions stored multi-link buttons as free-floating
+      // "elements" — fold those into the regular link list as a "group" item.
+      const legacyButtons = elements.filter(e=>e.type === "button");
+      if(legacyButtons.length){
+        legacyButtons.forEach(b=>links.push({ label: b.label, icon: b.icon || "svg:link", type: "group", links: b.links || [] }));
+        elements = elements.filter(e=>e.type !== "button");
+      }
+      return { id: y.id || uid(), label: y.label || "Tahun Ajaran", links, elements };
+    });
   } else if(data && Array.isArray(data.links) && data.links.length > 0){
     out.years = [{ id: uid(), label: "Tahun Ajaran Aktif", links: data.links, elements: [] }];
   } else {
@@ -843,34 +868,134 @@ function render(){
   }
   empty.style.display = "none";
   links.forEach(l=>{
+    let key = "link";
+    if(l.icon && l.icon.indexOf("svg:") === 0) key = l.icon.slice(4);
+    const theme = getIconTheme(key);
+
+    if(l.type === "group"){
+      const div = document.createElement("div");
+      div.className = "linkcard";
+      div.style.cursor = "pointer";
+      div.style.setProperty("--card-border", theme.border);
+      div.innerHTML = `${iconBadgeHTML(l.icon, 30)}<span class="lb">${escapeHtml(l.label)}</span>`;
+      div.onclick = ()=> openLinkGroup(l);
+      grid.appendChild(div);
+    } else {
+      const a = document.createElement("a");
+      a.className = "linkcard";
+      a.style.setProperty("--card-border", theme.border);
+      a.href = l.url; a.target = "_blank"; a.rel = "noopener noreferrer";
+      a.innerHTML = `${iconBadgeHTML(l.icon, 30)}<span class="lb">${escapeHtml(l.label)}</span>`;
+      grid.appendChild(a);
+    }
+  });
+}
+
+document.addEventListener("click", (e)=>{
+  if(!e.target.closest(".icon-select")){
+    document.querySelectorAll(".icon-select-pop.show").forEach(p=>p.classList.remove("show"));
+  }
+});
+
+// Compact reusable icon picker: shows current icon, opens a small grid + emoji field on click.
+function buildIconSelector(currentIcon, onSelect){
+  let icon = currentIcon || "svg:link";
+  const wrap = document.createElement("div");
+  wrap.className = "icon-select";
+  const trigger = document.createElement("button");
+  trigger.type = "button";
+  trigger.className = "icon-select-trigger";
+  trigger.innerHTML = iconBadgeHTML(icon, 20);
+  const pop = document.createElement("div");
+  pop.className = "icon-select-pop";
+
+  function markSel(){
+    pop.querySelectorAll(".icswatch-mini").forEach(x=>x.classList.remove("sel"));
+    if(icon && icon.indexOf("svg:") === 0){
+      const idx = ICON_KEYS.indexOf(icon.slice(4));
+      const btns = pop.querySelectorAll(".icswatch-mini");
+      if(idx >= 0 && btns[idx]) btns[idx].classList.add("sel");
+    }
+  }
+
+  ICON_KEYS.forEach(key=>{
+    const item = ICONS[key];
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "icswatch-mini";
+    b.title = item.label;
+    b.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="${item.theme.color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">${item.svg}</svg>`;
+    b.onclick = (e)=>{
+      e.stopPropagation();
+      icon = "svg:" + key;
+      trigger.innerHTML = iconBadgeHTML(icon, 20);
+      markSel();
+      onSelect(icon);
+      pop.classList.remove("show");
+    };
+    pop.appendChild(b);
+  });
+  const emojiRow = document.createElement("div");
+  emojiRow.className = "icon-select-emoji";
+  const emojiInput = document.createElement("input");
+  emojiInput.placeholder = "😀 (emoji)";
+  emojiInput.maxLength = 2;
+  emojiInput.oninput = ()=>{
+    const v = emojiInput.value.trim();
+    if(v){
+      icon = v;
+      trigger.innerHTML = iconBadgeHTML(icon, 20);
+      pop.querySelectorAll(".icswatch-mini").forEach(x=>x.classList.remove("sel"));
+      onSelect(icon);
+    }
+  };
+  emojiRow.appendChild(emojiInput);
+  pop.appendChild(emojiRow);
+
+  trigger.onclick = (e)=>{
+    e.stopPropagation();
+    document.querySelectorAll(".icon-select-pop.show").forEach(p=>{ if(p !== pop) p.classList.remove("show"); });
+    markSel();
+    pop.classList.toggle("show");
+  };
+  wrap.appendChild(trigger); wrap.appendChild(pop);
+  return wrap;
+}
+
+function renderBtnIconSelector(){
+  const wrap = $("btnIconSelectWrap");
+  if(!wrap) return;
+  wrap.innerHTML = "";
+  wrap.appendChild(buildIconSelector(selectedBtnIcon, (v)=>{ selectedBtnIcon = v; }));
+}
+
+function openLinkGroup(el){
+  $("lgTitle").textContent = el.label || "Tombol";
+  const lg = $("lgGrid");
+  lg.innerHTML = "";
+  (el.links || []).forEach(l=>{
     const a = document.createElement("a");
     a.className = "linkcard";
-    
     let key = "link";
     if(l.icon && l.icon.indexOf("svg:") === 0) key = l.icon.slice(4);
     const theme = getIconTheme(key);
     a.style.setProperty("--card-border", theme.border);
-    
     a.href = l.url; a.target = "_blank"; a.rel = "noopener noreferrer";
-    a.innerHTML = `${iconBadgeHTML(l.icon, 30)}<span class="lb">${escapeHtml(l.label)}</span>`;
-    grid.appendChild(a);
+    a.innerHTML = `${iconBadgeHTML(l.icon || "svg:link", 30)}<span class="lb">${escapeHtml(l.label)}</span>`;
+    lg.appendChild(a);
   });
+  openModal("linkGroupOverlay");
 }
-
-function closeAllPopovers(){
-  document.querySelectorAll(".link-popover.show").forEach(p=>p.classList.remove("show"));
-}
-document.addEventListener("click", (e)=>{
-  if(!e.target.closest(".free-btngroup")) closeAllPopovers();
-});
+$("lgClose").onclick = ()=>{ closeModal("linkGroupOverlay"); };
+$("linkGroupOverlay").onclick = (e)=>{ if(e.target === $("linkGroupOverlay")) closeModal("linkGroupOverlay"); };
 
 function renderElements(){
   const area = $("freeArea");
   if(!area) return;
   const year = getViewerYear();
-  const elements = (year && Array.isArray(year.elements)) ? year.elements : [];
+  const elements = (year && Array.isArray(year.elements)) ? year.elements.filter(e=>e.type === "text") : [];
   area.innerHTML = "";
-  area.style.minHeight = elements.length ? "220px" : "0";
+  area.style.minHeight = elements.length ? "160px" : "0";
 
   elements.forEach(el=>{
     const wrap = document.createElement("div");
@@ -879,37 +1004,11 @@ function renderElements(){
     wrap.style.top = (el.y != null ? el.y : 50) + "%";
     wrap.dataset.id = el.id;
 
-    if(el.type === "text"){
-      const t = document.createElement("div");
-      t.className = "free-text";
-      if(el.fontSize) t.style.fontSize = el.fontSize + "px";
-      t.textContent = el.content || "";
-      wrap.appendChild(t);
-    } else if(el.type === "button"){
-      const grp = document.createElement("div");
-      grp.className = "free-btngroup";
-      const trig = document.createElement("button");
-      trig.type = "button";
-      trig.className = "fb-trigger";
-      trig.innerHTML = `<span>${escapeHtml(el.label || "Tombol")}</span>`;
-      const pop = document.createElement("div");
-      pop.className = "link-popover";
-      (el.links || []).forEach(l=>{
-        const a = document.createElement("a");
-        a.href = l.url; a.target = "_blank"; a.rel = "noopener noreferrer";
-        a.innerHTML = `<span class="dot"></span><span>${escapeHtml(l.label)}</span>`;
-        pop.appendChild(a);
-      });
-      trig.onclick = (e)=>{
-        if(editMode) return;
-        e.stopPropagation();
-        const isShown = pop.classList.contains("show");
-        closeAllPopovers();
-        if(!isShown) pop.classList.add("show");
-      };
-      grp.appendChild(trig); grp.appendChild(pop);
-      wrap.appendChild(grp);
-    }
+    const t = document.createElement("div");
+    t.className = "free-text";
+    if(el.fontSize) t.style.fontSize = el.fontSize + "px";
+    t.textContent = el.content || "";
+    wrap.appendChild(t);
 
     if(editMode){
       const del = document.createElement("div");
@@ -919,7 +1018,7 @@ function renderElements(){
         e.stopPropagation();
         const yr = getViewerYear();
         yr.elements = (yr.elements || []).filter(x=>x.id !== el.id);
-        saveConfig("Elemen dihapus.");
+        saveConfig("Teks dihapus.");
         renderElements(); renderElementsAdminList();
       };
       wrap.appendChild(del);
@@ -953,7 +1052,7 @@ function attachDrag(wrap, elObj){
   const stop = ()=>{
     if(!dragging) return;
     dragging = false;
-    saveConfig("Posisi elemen diperbarui.");
+    saveConfig("Posisi teks diperbarui.");
   };
   wrap.addEventListener("pointerup", stop);
   wrap.addEventListener("pointercancel", stop);
@@ -963,41 +1062,25 @@ function renderElementsAdminList(){
   const list = $("existingElList");
   if(!list) return;
   const year = getEditingYear();
-  const elements = year && Array.isArray(year.elements) ? year.elements : [];
+  const elements = year && Array.isArray(year.elements) ? year.elements.filter(e=>e.type === "text") : [];
   list.innerHTML = "";
   if(!elements.length){
-    list.innerHTML = '<div style="color:var(--muted);font-size:13.5px;padding:16px;text-align:center;background:var(--surface);border-radius:var(--radius-md);border:1px dashed var(--border);margin-bottom:16px;">Belum ada teks atau tombol kustom di tahun ajaran ini.</div>';
+    list.innerHTML = '<div style="color:var(--muted);font-size:13.5px;padding:16px;text-align:center;background:var(--surface);border-radius:var(--radius-md);border:1px dashed var(--border);margin-bottom:16px;">Belum ada teks kustom di tahun ajaran ini.</div>';
     return;
   }
   elements.forEach((el)=>{
     const row = document.createElement("div");
     row.className = "existing el-row";
-    const preview = el.type === "text" ? (el.content || "") : (el.label || "") + " (" + ((el.links || []).length) + " link)";
     row.innerHTML = `
-      <span class="type-badge">${el.type === "text" ? "Teks" : "Tombol"}</span>
-      <span class="meta"><span class="lb">${escapeHtml(preview)}</span></span>
+      <span class="type-badge">Teks</span>
+      <span class="meta"><span class="lb">${escapeHtml(el.content || "")}</span></span>
       <div class="existing-actions">
-        ${el.type === "button" ? '<button class="btn-icon edit" aria-label="Edit"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>' : ''}
         <button class="btn-icon del" aria-label="Hapus"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg></button>
       </div>`;
-    const editBtn = row.querySelector(".edit");
-    if(editBtn){
-      editBtn.onclick = ()=>{
-        editingElementId = el.id;
-        $("newBtnLabel").value = el.label || "";
-        btnGroupRows = (el.links || []).map(l=>({ label: l.label, url: l.url }));
-        if(!btnGroupRows.length) btnGroupRows = [{ label: "", url: "" }];
-        renderBtnLinkRows();
-        $("btnGroupErr").style.display = "none";
-        $("saveBtnGroupBtn").textContent = "✓ Perbarui Tombol";
-        $("cancelBtnGroupBtn").style.display = "inline-flex";
-      };
-    }
     row.querySelector(".del").onclick = ()=>{
       const yr = getEditingYear();
       yr.elements = yr.elements.filter(x=>x.id !== el.id);
-      if(editingElementId === el.id) resetBtnGroupForm();
-      saveConfig("Elemen dihapus."); renderElementsAdminList(); renderElements();
+      saveConfig("Teks dihapus."); renderElementsAdminList(); renderElements();
     };
     list.appendChild(row);
   });
@@ -1008,56 +1091,51 @@ function renderBtnLinkRows(){
   if(!wrap) return;
   wrap.innerHTML = "";
   btnGroupRows.forEach((row, i)=>{
+    if(!row.icon) row.icon = "svg:link";
     const div = document.createElement("div");
     div.className = "linkrow-mini";
-    div.innerHTML = `<input placeholder="Nama link" data-f="label" value="${escapeHtml(row.label || "")}"><input placeholder="https://..." data-f="url" value="${escapeHtml(row.url || "")}"><button type="button" class="rm-row" aria-label="Hapus baris">✕</button>`;
-    div.querySelector('[data-f="label"]').oninput = (e)=> row.label = e.target.value;
-    div.querySelector('[data-f="url"]').oninput = (e)=> row.url = e.target.value;
-    div.querySelector(".rm-row").onclick = ()=>{
+    const iconWrap = buildIconSelector(row.icon, (v)=> row.icon = v);
+    const labelInput = document.createElement("input");
+    labelInput.placeholder = "Nama link"; labelInput.value = row.label || "";
+    labelInput.oninput = (e)=> row.label = e.target.value;
+    const urlInput = document.createElement("input");
+    urlInput.placeholder = "https://..."; urlInput.value = row.url || "";
+    urlInput.oninput = (e)=> row.url = e.target.value;
+    const rmBtn = document.createElement("button");
+    rmBtn.type = "button"; rmBtn.className = "rm-row"; rmBtn.setAttribute("aria-label", "Hapus baris"); rmBtn.textContent = "✕";
+    rmBtn.onclick = ()=>{
       btnGroupRows.splice(i, 1);
-      if(!btnGroupRows.length) btnGroupRows = [{ label: "", url: "" }];
+      if(!btnGroupRows.length) btnGroupRows = [{ label: "", url: "", icon: "svg:link" }];
       renderBtnLinkRows();
     };
+    div.appendChild(iconWrap); div.appendChild(labelInput); div.appendChild(urlInput); div.appendChild(rmBtn);
     wrap.appendChild(div);
   });
 }
 
-function resetBtnGroupForm(){
-  editingElementId = null;
-  $("newBtnLabel").value = "";
-  btnGroupRows = [{ label: "", url: "" }];
+function resetGroupFormFields(){
+  selectedBtnIcon = "svg:link";
+  renderBtnIconSelector();
+  btnGroupRows = [{ label: "", url: "", icon: "svg:link" }];
   renderBtnLinkRows();
   $("btnGroupErr").style.display = "none";
-  $("saveBtnGroupBtn").textContent = "+ Simpan Tombol";
-  $("cancelBtnGroupBtn").style.display = "none";
 }
 
-$("addBtnLinkRowBtn").onclick = ()=>{ btnGroupRows.push({ label: "", url: "" }); renderBtnLinkRows(); };
-$("cancelBtnGroupBtn").onclick = resetBtnGroupForm;
+$("addBtnLinkRowBtn").onclick = ()=>{ btnGroupRows.push({ label: "", url: "", icon: "svg:link" }); renderBtnLinkRows(); };
 
-$("saveBtnGroupBtn").onclick = ()=>{
-  const label = $("newBtnLabel").value.trim();
-  const links = btnGroupRows
-    .map(r=>({ label: (r.label || "").trim(), url: (r.url || "").trim() }))
-    .filter(r=>r.label && r.url);
-  if(!label || links.length === 0){ $("btnGroupErr").style.display = "block"; return; }
-  $("btnGroupErr").style.display = "none";
-  links.forEach(l=>{ if(!/^https?:\/\//i.test(l.url)) l.url = "https://" + l.url; });
-
-  const year = getEditingYear();
-  year.elements = year.elements || [];
-  if(editingElementId){
-    const idx = year.elements.findIndex(x=>x.id === editingElementId);
-    if(idx >= 0){ year.elements[idx].label = label; year.elements[idx].links = links; }
-    resetBtnGroupForm();
-    saveConfig("Tombol berhasil diperbarui.");
-  } else {
-    year.elements.push({ id: uid(), type: "button", label, links, x: 50, y: 50 });
-    resetBtnGroupForm();
-    saveConfig("Tombol berhasil disimpan.");
-  }
-  renderElementsAdminList(); renderElements();
-};
+function setAddType(type){
+  currentAddType = type;
+  $("itemTypeToggle").querySelectorAll(".type-toggle-btn").forEach(b=>b.classList.toggle("sel", b.dataset.type === type));
+  $("singleLinkFields").style.display = type === "link" ? "block" : "none";
+  $("groupFields").style.display = type === "group" ? "block" : "none";
+}
+$("itemTypeToggle").querySelectorAll(".type-toggle-btn").forEach(btn=>{
+  btn.onclick = ()=>{
+    setAddType(btn.dataset.type);
+    $("addErr").style.display = "none";
+    $("btnGroupErr").style.display = "none";
+  };
+});
 
 $("addTextBtn").onclick = ()=>{
   const content = $("newTextContent").value.trim();
@@ -1218,30 +1296,33 @@ function renderAdminList(){
   if(lbl && year) lbl.textContent = year.label;
   if(!links || links.length===0){
     list.innerHTML = '<div style="color:var(--muted);font-size:13.5px;padding:16px;text-align:center;background:var(--surface);border-radius:var(--radius-md);border:1px dashed var(--border);">Belum ada link di tahun ajaran ini.</div>';
+    renderElementsAdminList();
     return;
   }
   links.forEach((l, i)=>{
     const row = document.createElement("div");
     row.className = "existing";
-    
+    const isGroup = l.type === "group";
+
     row.innerHTML = `
       ${iconBadgeHTML(l.icon, 20)}
-      <span class="meta"><span class="lb">${escapeHtml(l.label)}</span><span class="url">${escapeHtml(l.url)}</span></span>
+      <span class="meta"><span class="lb">${escapeHtml(l.label)}</span><span class="url">${isGroup ? ((l.links || []).length + " link di dalam tombol ini") : escapeHtml(l.url)}</span></span>
       <div class="existing-actions">
+        ${isGroup ? '<span class="type-badge">Tombol</span>' : ''}
         <button class="btn-icon" data-dir="-1" ${i===0?"disabled":""} aria-label="Naik">▲</button>
         <button class="btn-icon" data-dir="1" ${i===links.length-1?"disabled":""} aria-label="Turun">▼</button>
         <button class="btn-icon edit" data-i="${i}" aria-label="Edit"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>
         <button class="btn-icon del" data-i="${i}" aria-label="Hapus"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg></button>
       </div>`;
-      
+
     row.querySelectorAll(".btn-icon[data-dir]").forEach(ab=>{
       ab.onclick = ()=> moveLink(i, parseInt(ab.dataset.dir,10));
     });
-    row.querySelector(".btn-icon.edit").onclick = ()=> startEditLink(i);
+    row.querySelector(".btn-icon.edit").onclick = ()=> isGroup ? startEditGroup(i) : startEditLink(i);
     row.querySelector(".btn-icon.del").onclick = ()=>{
       links.splice(i,1);
       if(editingLinkIndex === i) cancelEditLink();
-      saveConfig("Link berhasil dihapus."); renderAdminList(); render(); renderPreview();
+      saveConfig(isGroup ? "Tombol berhasil dihapus." : "Link berhasil dihapus."); renderAdminList(); render(); renderPreview();
     };
     list.appendChild(row);
   });
@@ -1268,7 +1349,7 @@ $("pwSubmit").onclick = ()=>{
 };
 $("pwInput").addEventListener("keydown", e=>{ if(e.key==="Enter") $("pwSubmit").click(); });
 
-$("adminClose").onclick = ()=>{ cancelEditLink(); resetBtnGroupForm(); closeModal("adminOverlay"); };
+$("adminClose").onclick = ()=>{ cancelEditLink(); closeModal("adminOverlay"); };
 $("adminOverlay").onclick = (e)=>{ if(e.target===$("adminOverlay")) closeModal("adminOverlay"); };
 
 $("previewBtn").onclick = ()=>{ renderPreview(); openModal("previewOverlay"); };
@@ -1280,6 +1361,8 @@ function startEditLink(i){
   const link = year.links[i];
   if(!link) return;
   editingLinkIndex = i;
+  setAddType("link");
+  $("itemTypeToggle").style.display = "none";
   $("newLabel").value = link.label;
   $("newUrl").value = link.url;
   $("iconPicker").querySelectorAll(".icswatch").forEach(b=>b.classList.remove("sel"));
@@ -1301,20 +1384,68 @@ function startEditLink(i){
   $("formSectionTitle").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
+function startEditGroup(i){
+  const year = getEditingYear();
+  const item = year.links[i];
+  if(!item) return;
+  editingLinkIndex = i;
+  setAddType("group");
+  $("itemTypeToggle").style.display = "none";
+  $("newBtnLabel").value = item.label || "";
+  selectedBtnIcon = item.icon || "svg:link";
+  renderBtnIconSelector();
+  btnGroupRows = (item.links || []).map(l=>({ label: l.label, url: l.url, icon: l.icon || "svg:link" }));
+  if(!btnGroupRows.length) btnGroupRows = [{ label: "", url: "", icon: "svg:link" }];
+  renderBtnLinkRows();
+  $("btnGroupErr").style.display = "none";
+  $("formSectionTitle").innerHTML = "3. Edit Tombol — <span style=\"color:var(--primary);\">" + escapeHtml(item.label) + "</span>";
+  $("addBtn").textContent = "✓ Perbarui Tombol";
+  $("cancelEditBtn").style.display = "inline-flex";
+  $("formSectionTitle").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 function cancelEditLink(){
   editingLinkIndex = null;
   $("newLabel").value=""; $("newUrl").value=""; $("newIcon").value="";
   selectedIcon = null;
   $("iconPicker").querySelectorAll(".icswatch").forEach(b=>b.classList.remove("sel"));
+  resetGroupFormFields();
   $("addErr").style.display = "none";
-  $("formSectionTitle").textContent = "3. Tambah Link Baru";
-  $("addBtn").textContent = "+ Simpan Link ke Portal";
+  $("formSectionTitle").textContent = "3. Tambah Item Baru";
+  $("addBtn").textContent = "+ Simpan ke Portal";
   $("cancelEditBtn").style.display = "none";
+  $("itemTypeToggle").style.display = "flex";
+  setAddType("link");
 }
 
 $("cancelEditBtn").onclick = cancelEditLink;
 
 $("addBtn").onclick = ()=>{
+  const year = getEditingYear();
+  year.links = year.links || [];
+
+  if(currentAddType === "group"){
+    const label = $("newBtnLabel").value.trim();
+    const linksArr = btnGroupRows
+      .map(r=>({ label: (r.label || "").trim(), url: (r.url || "").trim(), icon: r.icon || "svg:link" }))
+      .filter(r=>r.label && r.url);
+    if(!label || linksArr.length === 0){ $("btnGroupErr").style.display = "block"; return; }
+    $("btnGroupErr").style.display = "none";
+    linksArr.forEach(l=>{ if(!/^https?:\/\//i.test(l.url)) l.url = "https://" + l.url; });
+    const icon = selectedBtnIcon || "svg:link";
+
+    if(editingLinkIndex !== null && year.links[editingLinkIndex]){
+      year.links[editingLinkIndex] = { label, icon, type: "group", links: linksArr };
+      cancelEditLink();
+      saveConfig("Tombol berhasil diperbarui!"); renderAdminList(); render(); renderPreview();
+      return;
+    }
+    year.links.push({ label, icon, type: "group", links: linksArr });
+    cancelEditLink();
+    saveConfig("Tombol berhasil disimpan!"); renderAdminList(); render(); renderPreview();
+    return;
+  }
+
   const label = $("newLabel").value.trim();
   const url = $("newUrl").value.trim();
   const emoji = $("newIcon").value.trim();
@@ -1323,8 +1454,6 @@ $("addBtn").onclick = ()=>{
   let fullUrl = url;
   if(!/^https?:\/\//i.test(fullUrl)) fullUrl = "https://" + fullUrl;
   const icon = emoji || selectedIcon || "svg:cap";
-  const year = getEditingYear();
-  year.links = year.links || [];
 
   if(editingLinkIndex !== null && year.links[editingLinkIndex]){
     year.links[editingLinkIndex] = { label, url: fullUrl, icon };
@@ -1352,6 +1481,7 @@ $("savePassBtn").onclick = ()=>{
 
 async function init(){
   buildIconPicker();
+  renderBtnIconSelector();
   renderBtnLinkRows();
   cfg = normalizeCfg(loadFromLocalStorage());
   viewerYearId = readStoredYear();
