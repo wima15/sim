@@ -360,6 +360,8 @@
   .ann-more { margin-top: 8px; }
   .ann-toggle { align-self: center; padding: 8px 16px; border: 1px solid var(--border); border-radius: 100px; background: var(--surface); }
   .ann-toggle:hover { border-color: var(--primary); }
+  .existing.expired { opacity: 0.55; }
+  .ann-expired-tag { color: var(--danger); font-weight: 700; }
   #annTypeToggle .type-toggle-btn { padding: 9px 4px; font-size: 12.5px; }
 
   #toast {
@@ -532,6 +534,14 @@
     <div class="field">
       <label>Isi Pengumuman</label>
       <textarea id="annContent" rows="4" placeholder="Tulis isi pengumuman di sini..."></textarea>
+    </div>
+    <div class="field">
+      <label>Tampil Sampai (opsional)</label>
+      <div class="row" style="align-items:center;">
+        <input type="datetime-local" id="annEnd" style="flex:1;">
+        <button type="button" class="btn btn-ghost" id="clearAnnEndBtn" style="width:auto; padding:11px 14px; font-size:13px;">Tanpa batas</button>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-top:6px;font-weight:500;">Setelah waktu ini lewat, pengumuman otomatis tidak tampil di halaman utama. Kosongkan jika ingin tampil terus.</div>
     </div>
     <p class="err" id="annErr">Judul dan isi pengumuman wajib diisi.</p>
     <div class="row" style="margin-bottom:8px;">
@@ -1549,6 +1559,24 @@ function getAnnList(year){
   if(!Array.isArray(year.announcements)) year.announcements = [];
   return year.announcements;
 }
+function isAnnActive(a){
+  if(!a.end) return true;
+  const t = new Date(a.end).getTime();
+  return isNaN(t) ? true : t > Date.now();
+}
+function formatAnnDateTime(iso){
+  try{
+    const d = new Date(iso);
+    if(isNaN(d)) return "";
+    return d.toLocaleString("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  }catch(e){ return ""; }
+}
+function toLocalInput(iso){
+  const d = new Date(iso);
+  if(isNaN(d)) return "";
+  const p = n => String(n).padStart(2, "0");
+  return d.getFullYear() + "-" + p(d.getMonth()+1) + "-" + p(d.getDate()) + "T" + p(d.getHours()) + ":" + p(d.getMinutes());
+}
 function sortedAnn(year){
   return getAnnList(year).slice().sort((a,b)=> String(b.date || "").localeCompare(String(a.date || "")));
 }
@@ -1563,7 +1591,7 @@ function formatAnnDate(iso){
 function renderAnnouncements(){
   const box = $("announcements");
   if(!box) return;
-  const list = sortedAnn(getViewerYear());
+  const list = sortedAnn(getViewerYear()).filter(isAnnActive);
   box.innerHTML = "";
   if(!list.length){ box.style.display = "none"; return; }
   box.style.display = "flex";
@@ -1624,10 +1652,12 @@ function renderAnnAdminList(){
   items.forEach(a=>{
     const t = ANN_TYPES[a.type] || ANN_TYPES.info;
     const row = document.createElement("div");
-    row.className = "existing";
+    const active = isAnnActive(a);
+    row.className = "existing" + (active ? "" : " expired");
+    const endTxt = !a.end ? "" : (active ? " · Tampil sampai " + escapeHtml(formatAnnDateTime(a.end)) : ' · <span class="ann-expired-tag">Sudah berakhir</span>');
     row.innerHTML = `
       <span class="ann-badge" style="--ann-color:${t.color}; --ann-bg:${t.bg};">${t.label}</span>
-      <span class="meta"><span class="lb">${escapeHtml(a.title || "")}</span><span class="url">${escapeHtml(formatAnnDate(a.date))}</span></span>
+      <span class="meta"><span class="lb">${escapeHtml(a.title || "")}</span><span class="url">${escapeHtml(formatAnnDate(a.date))}${endTxt}</span></span>
       <div class="existing-actions">
         <button class="btn-icon edit" aria-label="Edit"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
         <button class="btn-icon del" aria-label="Hapus"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
@@ -1657,6 +1687,7 @@ function startEditAnn(id){
   setAnnType(a.type in ANN_TYPES ? a.type : "info");
   $("annTitle").value = a.title || "";
   $("annContent").value = a.content || "";
+  $("annEnd").value = a.end ? toLocalInput(a.end) : "";
   $("annErr").style.display = "none";
   $("annSectionTitle").innerHTML = "5. Edit Pengumuman — <span style=\"color:var(--primary);\">" + escapeHtml(a.title || "") + "</span>";
   $("saveAnnBtn").textContent = "✓ Perbarui Pengumuman";
@@ -1666,7 +1697,7 @@ function startEditAnn(id){
 
 function cancelEditAnn(){
   editingAnnId = null;
-  $("annTitle").value = ""; $("annContent").value = "";
+  $("annTitle").value = ""; $("annContent").value = ""; $("annEnd").value = "";
   $("annErr").style.display = "none";
   setAnnType("info");
   $("annSectionTitle").innerHTML = '5. Pengumuman - <span style="color:var(--primary);" id="annYearLabel">' + escapeHtml((getEditingYear() || {}).label || "-") + '</span>';
@@ -1674,21 +1705,28 @@ function cancelEditAnn(){
   $("cancelAnnBtn").style.display = "none";
 }
 $("cancelAnnBtn").onclick = cancelEditAnn;
+$("clearAnnEndBtn").onclick = ()=>{ $("annEnd").value = ""; };
+// Sembunyikan otomatis pengumuman yang sudah berakhir saat halaman dibiarkan terbuka
+setInterval(()=>{ try{ renderAnnouncements(); }catch(e){} }, 60000);
 
 $("saveAnnBtn").onclick = ()=>{
   const title = $("annTitle").value.trim();
   const content = $("annContent").value.trim();
-  if(!title || !content){ $("annErr").style.display = "block"; return; }
+  const endVal = $("annEnd").value;
+  const end = endVal ? new Date(endVal) : null;
+  if(!title || !content){ $("annErr").textContent = "Judul dan isi pengumuman wajib diisi."; $("annErr").style.display = "block"; return; }
+  if(end && (isNaN(end) || end.getTime() <= Date.now())){ $("annErr").textContent = "Waktu berakhir harus di masa depan."; $("annErr").style.display = "block"; return; }
   $("annErr").style.display = "none";
+  const endISO = end ? end.toISOString() : null;
   const year = getEditingYear();
   const list = getAnnList(year);
   const existing = editingAnnId ? list.find(x=>x.id === editingAnnId) : null;
   if(existing){
-    existing.title = title; existing.content = content; existing.type = annType;
+    existing.title = title; existing.content = content; existing.type = annType; existing.end = endISO;
     cancelEditAnn();
     saveConfig("Pengumuman berhasil diperbarui!");
   } else {
-    list.push({ id: uid(), type: annType, title, content, date: new Date().toISOString() });
+    list.push({ id: uid(), type: annType, title, content, end: endISO, date: new Date().toISOString() });
     cancelEditAnn();
     saveConfig("Pengumuman berhasil diterbitkan!", "📢");
   }
