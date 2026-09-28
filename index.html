@@ -472,6 +472,11 @@
   .kd-tbl tr.tot td{background:rgba(99,102,241,.22);font-weight:800}
   .kd-tbl td.l{text-align:left}.kd-lib{color:var(--danger);font-weight:800}
   .kd-ket b{white-space:nowrap}.kd-ket .none{color:var(--muted)}
+.kd-logo{height:40px;width:40px;border-radius:50%;object-fit:cover;flex:none}
+  .kd-sig{margin:24px 0 4px auto;width:280px;max-width:100%;text-align:center;font-size:13px;line-height:1.5}
+  .kd-sig .sg{height:104px;display:flex;align-items:flex-end;justify-content:center;margin:2px 0 -6px}
+  .kd-sig .sg img{max-height:104px;max-width:100%;object-fit:contain;background:#fff;border-radius:8px}
+  .kd-sig b{text-decoration:underline}
 </style>
 <script>if(/[?&]jadwal(=|&|$)/.test(location.search))document.documentElement.classList.add("sc-only");</script>
 </head>
@@ -694,7 +699,7 @@
       <p class="sc-note">Kaldik terbit sebagai menu ikon di portal untuk tahun ajaran yang sedang diedit.</p>
       <div id="kd_list"></div>
       <div class="section-title">Buat / Ganti Kaldik</div>
-      <p class="sc-note">1) Unduh format Excel, 2) isi kolom <b>NO, TAHUN, TANGGAL &amp; BULAN MULAI, TANGGAL &amp; BULAN AKHIR</b> (kosongkan bila hanya 1 hari) <b>KEGIATAN</b>, dan <b>JENIS</b> (tulis <b>Libur</b> untuk hari tidak efektif; kosong = efektif), 3) unggah, 4) terbitkan.</p>
+      <p class="sc-note">1) Unduh format Excel, 2) isi kolom <b>NO, TAHUN, TANGGAL &amp; BULAN MULAI, TANGGAL &amp; BULAN AKHIR</b> (kosongkan bila hanya 1 hari) <b>KEGIATAN</b>, dan <b>JENIS</b> (tulis <b>Libur</b> untuk hari tidak efektif; kosong = efektif). Hari lomba/kegiatan yang meniadakan KBM juga ditulis <b>Libur</b>; minggu dengan hari efektif <b>kurang dari 3 hari</b> otomatis dihitung tidak efektif. 3) unggah, 4) terbitkan.</p>
       <div class="row" style="margin-bottom:10px;">
         <button class="btn btn-ghost" id="kd_tpl" type="button">⬇ Unduh Format Excel</button>
         <label class="btn btn-ghost sc-file">⬆ Unggah Excel<input type="file" id="kd_file" accept=".xlsx,.xls" hidden></label>
@@ -702,6 +707,18 @@
       <div class="sc-msg" id="kd_msg"></div>
       <div class="field"><label>Hari Sekolah per Pekan (untuk hitung Minggu Efektif)</label><select id="kd_hd" style="width:100%;padding:13px 16px;border-radius:16px;border:1px solid var(--border);background:var(--surface);color:var(--ink);font:inherit;font-weight:500"><option value="5">5 hari (Senin - Jumat)</option><option value="6">6 hari (Senin - Sabtu)</option></select></div>
       <div class="field"><label>Nama Menu</label><input id="kd_label" value="Kalender Akademik"></div>
+      <div class="section-title">Pengesahan Kepala Sekolah</div>
+      <div class="field"><label>Nama Kepala Sekolah</label><input id="kd_kepsek" placeholder="Nama lengkap beserta gelar"></div>
+      <div class="field"><label>Tempat Penetapan Kaldik</label><input id="kd_tempat" value="Tambak"></div>
+      <div class="field"><label>Tanggal Kaldik</label><input type="date" id="kd_tgl"></div>
+      <div class="field"><label>Tanda Tangan Kepala Sekolah</label>
+        <div class="row" style="margin-bottom:6px;">
+          <label class="btn btn-ghost sc-file">⬆ Unggah Tanda Tangan<input type="file" id="kd_sigfile" accept="image/*" hidden></label>
+          <button class="btn btn-ghost" id="kd_sigdel" type="button" style="display:none;max-width:120px;">Hapus</button>
+        </div>
+        <div id="kd_sigprev"></div>
+        <p class="sc-note">Gunakan foto/scan tanda tangan (PNG/JPG). Latar putih dihapus otomatis dan gambar dipotong rapi. Tanda tangan diletakkan di atas nama, jadi ukurannya besar tanpa menggeser tata letak.</p>
+      </div>
       <div class="field"><label>Ikon Menu</label><div id="kd_iconWrap"></div></div>
       <div class="row">
         <button class="btn btn-primary" id="kd_pub" type="button" style="flex:1;">Terbitkan ke Menu</button>
@@ -2731,7 +2748,8 @@ function renderPreview(){
 const KD_BLN=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
 const KD_MON=["jan","feb","mar","apr","mei|may","jun","jul","agu|aug","sep","okt|oct","nov","des|dec"];
 const KD_COL=["#EF4444","#3B82F6","#10B981","#F59E0B","#8B5CF6","#EC4899","#14B8A6","#F97316","#6366F1","#84CC16"];
-let kdPend=null,kdIdx=null,kdIcon="svg:calendar",kdMsg="",kdItem=null;
+let kdPend=null,kdIdx=null,kdIcon="svg:calendar",kdMsg="",kdItem=null,kdSig=null;
+const KD_MIN=3; // minggu dengan hari efektif < 3 = minggu tidak efektif
 const kdP2=n=>String(n).padStart(2,"0");
 function kdMon(s){s=String(s).toLowerCase().slice(0,3);return KD_MON.findIndex(x=>x.split("|").includes(s))+1;}
 // terima: serial Excel, "20 Juli", "20/07", "20-7-2026", "2026-07-20".
@@ -2774,7 +2792,7 @@ function kdDownloadTpl(){
   ws["!cols"]=[{wch:5},{wch:8},{wch:24},{wch:24},{wch:45},{wch:22}];
   const pt=XLSX.utils.aoa_to_sheet([["PETUNJUK"],["Isi sheet KALDIK mulai baris 2. Jangan ubah judul kolom."],
     ["TAHUN: tahun kegiatan dimulai (2026 atau 2027). Boleh dikosongkan: otomatis dari Tahun Pelajaran (Juli-Desember = tahun awal, Januari-Juni = tahun akhir)."],["TANGGAL & BULAN: tulis 20 Juli, 20/07, atau format tanggal Excel biasa."],
-    ["TANGGAL & BULAN AKHIR: kosongkan bila kegiatan hanya 1 hari."],["Kegiatan lintas tahun (21 Desember - 3 Januari): cukup isi TAHUN awal, tahun akhir otomatis."],["JENIS: tulis Libur untuk hari yang tidak ada KBM (libur, cuti bersama). Kosong = efektif. Jika kosong tetapi nama kegiatan mengandung kata libur / cuti bersama, otomatis dianggap libur."],["Minggu Efektif dihitung Juli - Juni. Libur sebelum masuk sekolah (mis. 1 - 12 Juli) harus ditulis sebagai kegiatan berjenis Libur, kalau tidak dianggap hari efektif."],["Kaldik ditampilkan Juli - Juli sesuai nama Tahun Ajaran (contoh 2026/2027 = Juli 2026 s.d. Juli 2027). Berlaku untuk tahun berapa pun."]]);
+    ["TANGGAL & BULAN AKHIR: kosongkan bila kegiatan hanya 1 hari."],["Kegiatan lintas tahun (21 Desember - 3 Januari): cukup isi TAHUN awal, tahun akhir otomatis."],["JENIS: tulis Libur untuk hari yang tidak ada KBM (libur, cuti bersama). Kosong = efektif. Jika kosong tetapi nama kegiatan mengandung kata libur / cuti bersama, otomatis dianggap libur."],["Minggu dianggap TIDAK efektif bila hari efektifnya kurang dari 3 hari dalam satu minggu (karena libur, lomba, atau kegiatan lain yang ditandai Libur)."],["Minggu Efektif dihitung Juli - Juni. Libur sebelum masuk sekolah (mis. 1 - 12 Juli) harus ditulis sebagai kegiatan berjenis Libur, kalau tidak dianggap hari efektif."],["Kaldik ditampilkan Juli - Juli sesuai nama Tahun Ajaran (contoh 2026/2027 = Juli 2026 s.d. Juli 2027). Berlaku untuk tahun berapa pun."]]);
   pt["!cols"]=[{wch:90}];
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"KALDIK");XLSX.utils.book_append_sheet(wb,pt,"PETUNJUK");
   XLSX.writeFile(wb,"Format_Kaldik.xlsx");
@@ -2799,8 +2817,16 @@ function kdMonthInfo(y,m){
 let kdTab="kal";
 const kdLibur=x=>x.j!==undefined?!!x.j:/libur|cuti bersama/i.test(x.k);
 const kdTgl=iso=>{const p=iso.split("-");return +p[2]+" "+KD_BLN[+p[1]-1];};
+const kdTglFull=iso=>{const p=String(iso||"").split("-");return p.length===3?(+p[2]+" "+KD_BLN[+p[1]-1]+" "+p[0]):"";};
+function kdLogo(){const im=document.querySelector(".emblem img");return(im&&im.src&&im.naturalWidth)?{d:im.src,w:im.naturalWidth,h:im.naturalHeight}:null;}
+function kdHasSig(item){const K=(item&&item.kaldik)||{};return !!(K.kepsek||K.sig||K.tgl);}
+function kdSigHTML(item){
+  if(!kdHasSig(item))return"";const K=item.kaldik,tg=(K.tempat?K.tempat+", ":"")+(K.tgl?kdTglFull(K.tgl):"");
+  const ok=K.sig&&/^data:image\//.test(K.sig);
+  return `<div class="kd-sig">${tg?`<div>${escapeHtml(tg)}</div>`:""}<div>Kepala Sekolah,</div><div class="sg">${ok?`<img src="${escapeHtml(K.sig)}" alt="Tanda tangan Kepala Sekolah">`:""}</div><b>${escapeHtml(K.kepsek||"")}</b></div>`;
+}
 // Minggu Efektif: minggu (Sen-Min) dihitung pada bulan tempat sebagian besar hari sekolahnya berada.
-// Minggu tidak efektif = semua hari sekolah dalam minggu itu libur. Rentang Juli - Juni.
+// Minggu tidak efektif = hari efektif dalam minggu itu kurang dari KD_MIN (3) hari. Rentang Juli - Juni.
 function kdMinggu(item){
   const sy=kdSY(item),hd=item.kaldik.hd===6?6:5,DAY=864e5,lib=new Set();
   (item.kaldik.events||[]).filter(kdLibur).forEach(x=>{let t=Date.UTC(+x.s.slice(0,4),+x.s.slice(5,7)-1,+x.s.slice(8,10));const e=Date.UTC(+x.e.slice(0,4),+x.e.slice(5,7)-1,+x.e.slice(8,10));for(;t<=e;t+=DAY)lib.add(t);});
@@ -2812,7 +2838,7 @@ function kdMinggu(item){
     const cnt={};let eff=0,bk=null;
     for(let i=0;i<hd;i++){const t=ws+i*DAY,d=new Date(t),k=key(d.getUTCFullYear(),d.getUTCMonth()+1);if(i===0)bk=k;cnt[k]=(cnt[k]||0)+1;if(!lib.has(t)&&t>=start&&t<=end)eff++;}
     Object.keys(cnt).forEach(k=>{if(cnt[k]>cnt[bk])bk=+k;});
-    const r=by[bk];if(!r)continue;r.jml++;if(eff===0)r.tdk++;else r.efk++;
+    const r=by[bk];if(!r)continue;r.jml++;if(eff<KD_MIN)r.tdk++;else r.efk++;
   }
   const tot=a=>a.reduce((o,r)=>({jml:o.jml+r.jml,tdk:o.tdk+r.tdk,efk:o.efk+r.efk,hari:o.hari+r.hari}),{jml:0,tdk:0,efk:0,hari:0});
   return{hd,sems:[{name:"Semester Ganjil",rows:rows.slice(0,6),tot:tot(rows.slice(0,6))},{name:"Semester Genap",rows:rows.slice(6),tot:tot(rows.slice(6))}],all:tot(rows)};
@@ -2836,7 +2862,7 @@ function kdMingguHTML(item){
   let h='<div style="overflow-x:auto"><table class="kd-tbl"><tr><th>Bulan</th><th>Jumlah Minggu</th><th>Minggu Tidak Efektif</th><th>Minggu Efektif</th><th>Hari Efektif</th></tr>';
   G.sems.forEach(s=>{h+=`<tr class="sem"><td colspan="5">${s.name}</td></tr>`+s.rows.map(r=>row(KD_BLN[r.m-1]+" "+r.y,r)).join("")+row("Jumlah "+s.name,s.tot,"sub");});
   h+=row("Jumlah Tahun Pelajaran",G.all,"tot")+"</table></div>";
-  return h+`<p class="sc-note" style="margin-top:12px">Dasar hitung: ${G.hd} hari sekolah per pekan (Juli – Juni). Minggu dihitung pada bulan tempat sebagian besar hari sekolahnya berada; minggu tidak efektif = seluruh hari sekolah dalam minggu itu libur. Hari/minggu yang tidak ditandai <b>Libur</b> di Excel dianggap efektif.</p>`;
+  return h+`<p class="sc-note" style="margin-top:12px">Dasar hitung: ${G.hd} hari sekolah per pekan (Juli – Juni). Minggu dihitung pada bulan tempat sebagian besar hari sekolahnya berada; minggu tidak efektif = hari efektif dalam minggu itu kurang dari ${KD_MIN} hari (karena libur / kegiatan yang meniadakan KBM). Hari/minggu yang tidak ditandai <b>Libur</b> di Excel dianggap efektif.</p>`;
 }
 function kdRincianHTML(item){
   const ev=item.kaldik.events||[];
@@ -2847,11 +2873,33 @@ function kdRender(){
   const ev=kdEvents(kdItem),sy=kdSY(kdItem);
   if(!sy){$("kdBody").innerHTML='<p class="sc-note" style="text-align:center;padding:40px 0">Belum ada kegiatan.</p>';return;}
   const tabs=[["kal","Kalender"],["mgg","Minggu Efektif"],["rin","Rincian Kegiatan"]];
-  $("kdBody").innerHTML=`<div class="sc-bar"><b style="font-size:14px">Tahun Pelajaran ${sy}/${sy+1}</b><button class="sc-chip" id="kdPdf" type="button" style="margin-left:auto">⬇ Unduh PDF Lengkap</button></div>
+  const lg=kdLogo();
+  $("kdBody").innerHTML=`<div class="sc-bar">${lg?`<img class="kd-logo" src="${lg.d}" alt="Logo sekolah">`:""}<b style="font-size:14px">Tahun Pelajaran ${sy}/${sy+1}</b><button class="sc-chip" id="kdPdf" type="button" style="margin-left:auto">⬇ Unduh PDF Lengkap</button></div>
   <div class="sc-bar">${tabs.map(t=>`<button class="sc-chip ${kdTab===t[0]?"on":""}" data-t="${t[0]}" type="button">${t[1]}</button>`).join("")}</div>
-  ${kdTab==="mgg"?kdMingguHTML(kdItem):kdTab==="rin"?kdRincianHTML(kdItem):kdCalHTML(ev,sy)}`;
+  ${kdTab==="mgg"?kdMingguHTML(kdItem):kdTab==="rin"?kdRincianHTML(kdItem):kdCalHTML(ev,sy)}${kdSigHTML(kdItem)}`;
   $("kdPdf").onclick=kdPdf;
   $("kdBody").querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>{kdTab=b.dataset.t;kdRender();});
+}
+function kdImgFit(doc,o,x,y,bw,bh,ha,va){
+  const fm=((/^data:image\/(\w+)/.exec(o.d)||[])[1]||"png").toUpperCase().replace("JPG","JPEG");
+  const r=Math.min(bw/o.w,bh/o.h),w=o.w*r,h=o.h*r;
+  const px=ha==="c"?x+(bw-w)/2:x,py=va==="b"?y+(bh-h):y+(bh-h)/2;
+  try{doc.addImage(o.d,fm,px,py,w,h);}catch(e){console.warn("addImage gagal:",e);}
+}
+// blok pengesahan: tempat/tanggal, jabatan, tanda tangan (di atas nama), nama. Mengembalikan tinggi blok (mm)
+const KD_SIGH=26,KD_SIGBLOCK=4.5+1+KD_SIGH+3+2;
+function kdSigPdf(doc,item,cx,y,bw){
+  if(!kdHasSig(item))return 0;const K=item.kaldik;
+  doc.setFont("helvetica","normal");doc.setFontSize(9);doc.setTextColor(30,41,59);
+  const tg=(K.tempat?K.tempat+", ":"")+(K.tgl?kdTglFull(K.tgl):"");
+  if(tg)doc.text(tg,cx,y,{align:"center"});
+  let yy=y+4.5;doc.text("Kepala Sekolah,",cx,yy,{align:"center"});
+  if(K.sig&&K.sw&&K.sh)kdImgFit(doc,{d:K.sig,w:K.sw,h:K.sh},cx-bw/2,yy+1,bw,KD_SIGH,"c","b");
+  yy+=1+KD_SIGH+3;
+  const nm=K.kepsek||"..............................";
+  doc.setFont("helvetica","bold");doc.text(nm,cx,yy,{align:"center"});
+  const tw=doc.getTextWidth(nm);doc.setDrawColor(30,41,59);doc.setLineWidth(.2);doc.line(cx-tw/2,yy+.8,cx+tw/2,yy+.8);
+  return KD_SIGBLOCK;
 }
 function kdPdf(){
   if(!(window.jspdf&&window.jspdf.jsPDF)){showToast("Pustaka PDF belum termuat. Periksa koneksi internet.","⚠️");return;}
@@ -2860,6 +2908,7 @@ function kdPdf(){
   const rgb=h=>[1,3,5].map(i=>parseInt(h.substr(i,2),16));
   const title=sem=>{
     doc.setFont("helvetica","bold");doc.setFontSize(16);doc.setTextColor(30,41,59);
+    const lg=kdLogo();if(lg)kdImgFit(doc,lg,M,M,16,16,"l","m");
     doc.text("KALENDER AKADEMIK",W/2,M+5,{align:"center"});
     doc.setFontSize(11);doc.setTextColor(79,70,229);doc.text("TAHUN PELAJARAN "+sy+"/"+(sy+1),W/2,M+11,{align:"center"});
     doc.setFont("helvetica","normal");doc.setFontSize(8.5);doc.setTextColor(100,116,139);doc.text("SMK Widya Mandala Tambak  |  "+sem,W/2,M+16,{align:"center"});
@@ -2909,7 +2958,10 @@ function kdPdf(){
       });
       if(pi===1&&row.length<COLS&&i+COLS>=pg.list.length){
         const x=M+row.length*(CW+G);doc.setFont("helvetica","normal");doc.setFontSize(8);doc.setTextColor(100,116,139);
-        doc.text(doc.splitTextToSize("Keterangan: lingkaran berwarna = tanggal ada kegiatan; titik kecil di pojok = lebih dari satu kegiatan; angka merah = hari Minggu.",CW-6),x+3,y0+5);
+        const lgd=doc.splitTextToSize("Keterangan: lingkaran berwarna = tanggal ada kegiatan; titik kecil di pojok = lebih dari satu kegiatan; angka merah = hari Minggu.",CW-6);
+        doc.text(lgd,x+3,y0+5);
+        const sy0=y0+5+lgd.length*3.4+7;
+        if(kdHasSig(kdItem)&&sy0+KD_SIGBLOCK<=y0+rh)kdSigPdf(doc,kdItem,x+CW/2,sy0,CW-24);
       }
       y0+=rh+G;
     }
@@ -2917,6 +2969,7 @@ function kdPdf(){
   if(typeof doc.autoTable!=="function"){showToast("Pustaka tabel PDF belum termuat: halaman Minggu Efektif & Rincian dilewati.","⚠️");}
   else{
     const MG=kdMinggu(kdItem);doc.addPage();
+    {const lg=kdLogo();if(lg)kdImgFit(doc,lg,M,M,16,16,"l","m");}
     doc.setFont("helvetica","bold");doc.setFontSize(15);doc.setTextColor(30,41,59);doc.text("MINGGU EFEKTIF",W/2,M+5,{align:"center"});
     doc.setFontSize(11);doc.setTextColor(79,70,229);doc.text("TAHUN PELAJARAN "+sy+"/"+(sy+1),W/2,M+11,{align:"center"});
     doc.setFont("helvetica","normal");doc.setFontSize(8.5);doc.setTextColor(100,116,139);doc.text("SMK Widya Mandala Tambak  |  "+MG.hd+" hari sekolah per pekan",W/2,M+16,{align:"center"});
@@ -2932,7 +2985,7 @@ function kdPdf(){
       styles:{fontSize:9,cellPadding:2,halign:"center",lineColor:[203,213,225],lineWidth:.2,textColor:[30,41,59]},headStyles:{fillColor:[79,70,229],textColor:255},columnStyles:{0:{cellWidth:62}}});
     let y=doc.lastAutoTable.finalY+4;
     doc.setFont("helvetica","normal");doc.setFontSize(7.5);doc.setTextColor(100,116,139);
-    const nt=doc.splitTextToSize("Catatan: minggu dihitung pada bulan tempat sebagian besar hari sekolahnya berada; minggu tidak efektif = seluruh hari sekolah dalam minggu tersebut libur. Hari/minggu yang tidak ditandai Libur dianggap efektif.",W-2*M);
+    const nt=doc.splitTextToSize("Catatan: minggu dihitung pada bulan tempat sebagian besar hari sekolahnya berada; minggu tidak efektif = hari efektif dalam minggu tersebut kurang dari "+KD_MIN+" hari (karena libur / kegiatan yang meniadakan KBM). Hari/minggu yang tidak ditandai Libur dianggap efektif.",W-2*M);
     doc.text(nt,M,y);y+=nt.length*3.4+8;
     if(y>H-50){doc.addPage();y=M+6;}
     doc.setFont("helvetica","bold");doc.setFontSize(12);doc.setTextColor(30,41,59);doc.text("RINCIAN KEGIATAN",M,y);
@@ -2940,13 +2993,17 @@ function kdPdf(){
       body:(kdItem.kaldik.events||[]).map((x,i)=>[String(i+1),x.s.slice(0,4),kdTgl(x.s),x.e===x.s?"-":kdTgl(x.e),x.k,kdLibur(x)?"Libur":""]),
       styles:{fontSize:8.5,cellPadding:1.8,lineColor:[203,213,225],lineWidth:.2,textColor:[30,41,59]},headStyles:{fillColor:[79,70,229],textColor:255,halign:"center"},rowPageBreak:"avoid",
       columnStyles:{0:{cellWidth:10,halign:"center"},1:{cellWidth:14,halign:"center"},2:{cellWidth:32},3:{cellWidth:32},5:{cellWidth:16,halign:"center"}}});
+    if(kdHasSig(kdItem)){
+      let fy=doc.lastAutoTable.finalY+10;if(fy+KD_SIGBLOCK>H-M){doc.addPage();fy=M+10;}
+      kdSigPdf(doc,kdItem,W-M-34,fy,64);
+    }
   }
   doc.save("Kaldik_"+sy+"-"+(sy+1)+".pdf");
 }
 function openKaldik(item){kdItem=item;kdTab="kal";$("kdTitle").textContent=item.label||"Kalender Akademik";kdRender();openModal("kdOverlay");}
 // --- admin ---
 function kdIconPick(){const w=$("kd_iconWrap");w.innerHTML="";w.appendChild(buildIconSelector(kdIcon,ic=>{kdIcon=ic;}));}
-function kdReset(){kdPend=null;kdIdx=null;kdMsg="";kdIcon="svg:calendar";$("kd_label").value="Kalender Akademik";$("kd_hd").value="5";$("kd_file").value="";$("kd_cancel").style.display="none";kdIconPick();}
+function kdReset(){kdPend=null;kdIdx=null;kdMsg="";kdIcon="svg:calendar";$("kd_label").value="Kalender Akademik";$("kd_hd").value="5";$("kd_file").value="";$("kd_cancel").style.display="none";kdSig=null;$("kd_kepsek").value="";$("kd_tempat").value="Tambak";$("kd_tgl").value="";$("kd_sigfile").value="";kdSigPrev();kdIconPick();}
 function kdAdmin(){
   const y=getEditingYear();$("kd_year").textContent=y?y.label:"-";
   const ls=(y&&y.links)||[],box=$("kd_list");box.innerHTML="";
@@ -2964,8 +3021,39 @@ function kdAdmin(){
 function editKaldik(i){
   const l=getEditingYear().links[i];if(!l)return;
   kdIdx=i;kdPend=l.kaldik;kdIcon=l.icon||"svg:calendar";$("kd_label").value=l.label;$("kd_hd").value=String(l.kaldik.hd===6?6:5);$("kd_cancel").style.display="block";
+  {const K=l.kaldik;kdSig=(K.sig&&K.sw&&K.sh)?{d:K.sig,w:K.sw,h:K.sh}:null;$("kd_kepsek").value=K.kepsek||"";$("kd_tempat").value=K.tempat||"";$("kd_tgl").value=K.tgl||"";kdSigPrev();}
   kdMsg=`<span class="sc-ok">Mengedit "${escapeHtml(l.label)}". Unggah Excel baru untuk mengganti isi, atau ubah nama/ikon lalu simpan.</span>`;
   kdIconPick();$("adminOverlay").querySelector('[data-tab="kaldik"]').click();kdAdmin();
+}
+function kdSigPrev(){
+  const b=$("kd_sigprev");if(!b)return;
+  b.innerHTML=kdSig?`<div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:8px;display:inline-block;margin-top:4px"><img src="${kdSig.d}" alt="Tanda tangan" style="max-height:90px;max-width:220px;display:block"></div>`:"";
+  $("kd_sigdel").style.display=kdSig?"":"none";
+}
+function kdSigOnFile(e){
+  const f=e.target.files[0];if(!f)return;
+  const rd=new FileReader();
+  rd.onerror=()=>showToast("File tidak dapat dibaca.","⚠️");
+  rd.onload=()=>{const im=new Image();
+    im.onerror=()=>showToast("File bukan gambar yang valid.","⚠️");
+    im.onload=()=>{
+      const r=Math.min(1,700/Math.max(im.width,im.height)),w=Math.max(1,Math.round(im.width*r)),h=Math.max(1,Math.round(im.height*r));
+      const c=document.createElement("canvas");c.width=w;c.height=h;const g=c.getContext("2d");g.drawImage(im,0,0,w,h);
+      const px=g.getImageData(0,0,w,h),d=px.data;
+      // latar putih/terang -> transparan
+      for(let i=0;i<d.length;i+=4){const m=Math.min(d[i],d[i+1],d[i+2]);if(m>=235)d[i+3]=0;else if(m>200)d[i+3]=Math.min(d[i+3],Math.round((235-m)/35*255));}
+      // potong ruang kosong di sekeliling tanda tangan
+      let x0=w,y0=h,x1=-1,y1=-1;
+      for(let y=0;y<h;y++)for(let x=0;x<w;x++)if(d[(y*w+x)*4+3]>20){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;}
+      if(x1<0){showToast("Tanda tangan tidak terdeteksi (gambar kosong/putih).","⚠️");return;}
+      g.putImageData(px,0,0);
+      const pad=4,cx=Math.max(0,x0-pad),cy=Math.max(0,y0-pad),cw=Math.min(w-cx,x1-x0+1+2*pad),ch=Math.min(h-cy,y1-y0+1+2*pad);
+      const c2=document.createElement("canvas");c2.width=cw;c2.height=ch;c2.getContext("2d").drawImage(c,cx,cy,cw,ch,0,0,cw,ch);
+      kdSig={d:c2.toDataURL("image/png"),w:cw,h:ch};kdSigPrev();
+      showToast("Tanda tangan dimuat. Klik Terbitkan / Perbarui untuk menyimpan.","✍️");
+    };
+    im.src=rd.result;};
+  rd.readAsDataURL(f);
 }
 async function kdOnFile(e){
   const f=e.target.files[0];if(!f)return;
@@ -2987,11 +3075,12 @@ function kdPublish(){
   if(!kdPend)return;
   const y=getEditingYear();y.links=y.links||[];
   const old=kdIdx!==null&&y.links[kdIdx]?y.links[kdIdx].id:null;
-  const item={type:"kaldik",id:old||("k"+uid().slice(1)),label:$("kd_label").value.trim()||"Kalender Akademik",icon:kdIcon||"svg:calendar",kaldik:{...kdPend,sy:kdSYFromLabel(y.label)||kdPend.sy||0,hd:+$("kd_hd").value===6?6:5}};
+  const item={type:"kaldik",id:old||("k"+uid().slice(1)),label:$("kd_label").value.trim()||"Kalender Akademik",icon:kdIcon||"svg:calendar",kaldik:{...kdPend,sy:kdSYFromLabel(y.label)||kdPend.sy||0,hd:+$("kd_hd").value===6?6:5,kepsek:$("kd_kepsek").value.trim(),tempat:$("kd_tempat").value.trim(),tgl:$("kd_tgl").value||"",sig:kdSig?kdSig.d:"",sw:kdSig?kdSig.w:0,sh:kdSig?kdSig.h:0}};
   if(kdIdx!==null&&y.links[kdIdx])y.links[kdIdx]=item;else y.links.push(item);
   saveConfig("Kaldik berhasil diterbitkan ke menu!");kdReset();renderAdminList();render();renderPreview();kdAdmin();
 }
 function kdInit(){
+  $("kd_sigfile").onchange=kdSigOnFile;$("kd_sigdel").onclick=()=>{kdSig=null;$("kd_sigfile").value="";kdSigPrev();};
   $("kd_tpl").onclick=kdDownloadTpl;$("kd_file").onchange=kdOnFile;$("kd_pub").onclick=kdPublish;
   $("kd_cancel").onclick=()=>{kdReset();kdAdmin();};
   $("kdClose").onclick=()=>closeModal("kdOverlay");
