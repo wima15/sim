@@ -36,6 +36,9 @@ jobs:
           java-version: 21
 
       - uses: android-actions/setup-android@v3
+        with:
+          # Jangan pakai paket bawaan "tools" (sudah tidak ada di sdkmanager terbaru -> error).
+          packages: "platform-tools platforms;android-35 build-tools;35.0.0"
 
       - name: Install dependency
         run: npm install --legacy-peer-deps
