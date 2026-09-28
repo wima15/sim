@@ -640,7 +640,7 @@
       <p class="sc-note">Jadwal terbit sebagai menu ikon di portal untuk tahun ajaran yang sedang diedit (ganti di tab Portal &amp; Link).</p>
       <div id="sc_list"></div>
       <div class="section-title">Buat / Ganti Jadwal</div>
-      <p class="sc-note">1) Atur format (shift, kelas, jam, istirahat), 2) Unduh format Excel (baca sheet <b>PETUNJUK</b> di dalamnya), 3) isi sheet <b>JADWAL</b>, 4) unggah, 5) pilih nama &amp; ikon menu, 6) terbitkan.</p>
+      <p class="sc-note">1) Atur format (Shift 1 &amp; 2 digabung, kelas, ruang berwarna, jam, istirahat), 2) Unduh format Excel (baca sheet <b>PETUNJUK</b> di dalamnya), 3) isi sheet <b>JADWAL</b>, 4) unggah, 5) pilih nama &amp; ikon menu, 6) terbitkan.</p>
       <div id="sc_fmt"></div>
       <div class="row" style="margin-bottom:10px;">
         <button class="btn btn-ghost" id="sc_tpl" type="button">⬇ Unduh Format Excel</button>
@@ -1980,10 +1980,43 @@ const scDec=c=>{const m=/^([A-Za-z]+)\s*(\d+)$/.exec(c||"");return m?{g:m[1].toU
 const scCol=m=>`hsl(${(parseInt(m,10)*47)%360} 65% 55%)`;
 const scRng=w=>{const m=/(\d+)[.:](\d+)\s*-\s*(\d+)[.:](\d+)/.exec(w||"");return m?[+m[1]*60+ +m[2],+m[3]*60+ +m[4]]:null};
 
-// --- baca Excel (mencari judul kolom HR / WAKTU / JAM KE, NAMA GURU, MATA PELAJARAN) ---
-function scParse(a){
+// --- warna ruang: palet, pembaca warna Excel, pencocok ---
+const SC_PAL=["#FFC7CE","#C6E0B4","#BDD7EE","#FFE699","#D9C3F0","#F8CBAD","#B4E5E0","#F4B6D8","#D0E0A0","#A9C4EB","#FFD8A8","#C9B8E8","#9EDBC5","#F3A6A6","#E6D9A2","#B2D1F0"];
+const SC_THEME=["FFFFFF","000000","E7E6E6","44546A","4472C4","ED7D31","A5A5A5","FFC000","5B9BD5","70AD47"];
+const scRGB=h=>{const m=/^#?([0-9a-f]{6})$/i.exec(h||"");return m?[0,2,4].map(i=>parseInt(m[1].substr(i,2),16)):null;};
+function scArgb(c){
+  if(!c)return null;let hex=null;
+  if(c.argb)hex=String(c.argb).slice(-6);else if(c.theme!=null)hex=SC_THEME[c.theme]||null;
+  if(!hex||!/^[0-9a-f]{6}$/i.test(hex))return null;
+  if(c.tint){const t=c.tint;hex=[0,2,4].map(i=>{const v=parseInt(hex.substr(i,2),16),o=t>0?v+(255-v)*t:v*(1+t);return Math.max(0,Math.min(255,Math.round(o))).toString(16).padStart(2,"0");}).join("");}
+  return "#"+hex.toUpperCase();
+}
+// daftar ruang {nama: "#RRGGBB"}; jadwal lama (ruang per kelas) diubah otomatis
+function scRoomList(D){
+  if(D.roomList&&Object.keys(D.roomList).length)return D.roomList;
+  const o={};Array.from(new Set(Object.values(D.rooms||{}))).filter(Boolean).forEach((n,i)=>o[n]=SC_PAL[i%SC_PAL.length]);return o;
+}
+// ruang kelas ke-i pada satu baris jam (per jam; jadwal lama jatuh ke ruang tetap per kelas)
+const scRoomOf=(D,r,i)=>r.rooms?(r.rooms[i]||""):((D.rooms||{})[D.classes[i]]||"");
+function scAssignRooms(D){
+  const pal=Object.entries(D.roomList||{}).map(([n,h])=>[n,scRGB(h)]).filter(x=>x[1]),st={none:0,miss:0};
+  D.days.forEach(d=>d.rows.forEach(r=>{
+    r.rooms=r.cells.map((cell,i)=>{
+      if(!cell)return "";
+      const rgb=scRGB(r.fl&&r.fl[i]);
+      if(!rgb||rgb.every(v=>v>=240)){st.none++;return "";}
+      let best="",bd=1e9;pal.forEach(([n,p])=>{const dd=Math.hypot(p[0]-rgb[0],p[1]-rgb[1],p[2]-rgb[2]);if(dd<bd){bd=dd;best=n;}});
+      if(bd<=30)return best;st.miss++;return "";
+    });
+    delete r.fl;
+  }));
+  D.roomStat=st;
+}
+// --- baca Excel (mencari judul kolom HR / WAKTU / JAM KE, NAMA GURU, MATA PELAJARAN, WARNA/RUANG) ---
+// F(r,c) = warna isian kotak (#RRGGBB) atau null; dipakai untuk membaca ruang dari warna
+function scParse(a,F){
   const T=(r,c)=>String((a[r]||[])[c]??"").trim(), U=(r,c)=>T(r,c).toUpperCase();
-  const D={title:[T(2,1),T(3,1)].filter(Boolean).join(" "),subtitle:T(4,1),classes:[],days:[],guru:{},mapel:{}};
+  const D={title:[T(2,1),T(3,1)].filter(Boolean).join(" "),subtitle:T(4,1),classes:[],days:[],guru:{},mapel:{},rooms:{},roomList:{}};
   for(let r=0;r<a.length;r++)for(let c=0;c<(a[r]||[]).length;c++){
     if(U(r,c)==="HR"&&U(r,c+1)==="WAKTU"){
       const cols=[];for(let k=c+3;T(r,k)&&U(r,k)!=="HR";k++)cols.push((T(r,k)+" "+T(r+1,k)).trim());
@@ -1991,14 +2024,17 @@ function scParse(a){
       let day="",rows=[];
       for(let i=r+2;i<a.length;i++){const w=T(i,c+1),j=T(i,c+2);if(!w&&!j)break;
         if(T(i,c))day=T(i,c).toUpperCase();
-        rows.push({waktu:w,jam:j,cells:cols.map((_,x)=>T(i,c+3+x))});}
+        rows.push({waktu:w,jam:j,cells:cols.map((_,x)=>T(i,c+3+x)),fl:F?cols.map((_,x)=>F(i,c+3+x)):null});}
       if(day)D.days.push({hari:day,rows});
     }
     if(U(r,c)==="NAMA GURU"){let k=c+1;while(k<a[r].length&&U(r,k)!=="KODE")k++;
       for(let i=r+1;T(i,c);i++)D.guru[T(i,k).toUpperCase()]=T(i,c);}
     if(U(r,c)==="MATA PELAJARAN"){for(let i=r+1;T(i,c);i++)D.mapel[T(i,c-1)]=T(i,c);}
+    if(U(r,c)==="RUANG"&&c>0&&U(r,c-1)==="WARNA"){for(let i=r+1;T(i,c);i++){const hx=F&&(F(i,c-1)||F(i,c));if(hx)D.roomList[T(i,c)]=hx;}}
+    if(U(r,c)==="RUANG"&&c>0&&U(r,c-1)==="KELAS"){for(let i=r+1;T(i,c-1);i++)D.rooms[T(i,c-1)]=T(i,c);}
   }
   D.days.sort((x,y)=>SC_HARI.indexOf(x.hari)-SC_HARI.indexOf(y.hari));
+  if(F&&Object.keys(D.roomList).length)scAssignRooms(D);else D.days.forEach(d=>d.rows.forEach(r=>delete r.fl));
   return D;
 }
 // --- tulis Excel dengan tata letak yang sama seperti JADWAL_KBM.xlsx ---
@@ -2039,6 +2075,7 @@ function scBuildWB(D,isSample){
     pageSetup:{paperSize:9,orientation:"landscape",fitToPage:true,fitToWidth:1,fitToHeight:0,horizontalCentered:true,
       margins:{left:.4,right:.4,top:.5,bottom:.5,header:.2,footer:.2}}});
   const n=Math.max(D.classes.length,1), W=3+n, c2=W+2, last=c2+W-1;   // indeks kolom 0-based
+  const RL=scRoomList(D);
   const C=(r,c)=>ws.getCell(r+1,c+1);
   const merge=(r1,c1,r2,c2_)=>{if(r1!==r2||c1!==c2_)ws.mergeCells(r1+1,c1+1,r2+1,c2_+1);};
   const paint=(r,c,o)=>{const x=C(r,c);if(o.v!==undefined&&o.v!==null&&o.v!=="")x.value=o.v;
@@ -2078,7 +2115,7 @@ function scBuildWB(D,isSample){
         const rr=r+2+i, isBrk=!/^\d+$/.test(String(w.jam).trim()), zb=i%2?X.zebra:X.white, bg=isBrk?X.brk:zb;
         paint(rr,c+1,{v:w.waktu,bg,b:isBrk,co:isBrk?X.brkTx:X.ink});
         paint(rr,c+2,{v:isBrk?w.jam:(+w.jam),bg,b:true,i:isBrk,co:isBrk?X.brkTx:X.ink});
-        w.cells.forEach((v,k)=>paint(rr,c+3+k,{v,bg}));
+        w.cells.forEach((v,k)=>{const rn=v?scRoomOf(D,w,k):"",hx=rn&&RL[rn];paint(rr,c+3+k,{v,bg:hx?"FF"+hx.slice(1).toUpperCase():bg});});
         for(let k=w.cells.length;k<n;k++)paint(rr,c+3+k,{bg});
         paint(rr,c,{bg:dc});
         ws.getRow(rr+1).height=isBrk?18:22;
@@ -2109,6 +2146,12 @@ function scBuildWB(D,isSample){
     for(let c=c2+2;c<=last;c++)C(rr,c).border=box;
     ws.getRow(rr+1).height=20;}
   r+=rows+2;
+  merge(r,1,r,W);paint(r,1,{v:"DAFTAR RUANG & WARNA (kotak jadwal diberi warna ruangnya)",b:true,sz:12,co:X.priDk,bg:X.priLt,h:"left",ind:1});ws.getRow(r+1).height=22;r++;
+  paint(r,1,{...H,v:"WARNA"});merge(r,2,r,W-1);paint(r,2,{...H,v:"RUANG"});for(let c=3;c<W;c++)C(r,c).border=box;ws.getRow(r+1).height=20;
+  const rl=Object.entries(RL),nrm=rl.length+3;
+  for(let i=0;i<nrm;i++){const rr=r+1+i,e=rl[i];paint(rr,1,{bg:e?"FF"+e[1].slice(1).toUpperCase():X.white});merge(rr,2,rr,W-1);
+    paint(rr,2,{v:e?e[0]:"",bg:X.white,b:!!e,h:"left",ind:1});for(let c=3;c<W;c++)C(rr,c).border=box;ws.getRow(rr+1).height=20;}
+  r+=nrm+2;
   merge(r,1,r,last);paint(r,1,{v:"Baris kosong di bawah tiap daftar disediakan untuk menambah guru / mata pelajaran baru (lanjutkan nomor/kodenya).",i:true,sz:10,co:X.mute,h:"left",bd:false});
 
   // ================= SHEET 2 : PETUNJUK =================
@@ -2133,7 +2176,8 @@ function scBuildWB(D,isSample){
    "Isi judul (baris atas) dan keterangan berlaku mulai (baris di bawah judul).",
    "Isi kolom WAKTU (contoh 07.15 - 07.45) dan JAM KE (angka 1, 2, 3, dst.) untuk tiap baris jam pelajaran.",
    "Isi setiap kotak kelas dengan KODE = huruf kode guru + angka kode mapel, misalnya I3 (lihat contoh di bagian C).",
-   "Lengkapi DAFTAR GURU & KODE dan DAFTAR MATA PELAJARAN & KODE di bagian bawah sheet JADWAL.",
+   "Tentukan RUANG tiap jam dengan WARNA: warnai kotak yang berisi kode dengan warna ruang sesuai daftar RUANG & WARNA di bawah sheet JADWAL. Karena moving class, warnanya boleh berbeda di tiap jam. Cara cepat: klik kotak warna ruang di daftar › Format Painter (ikon kuas) › sapukan ke kotak jadwal.",
+   "Lengkapi DAFTAR GURU & KODE, DAFTAR MATA PELAJARAN & KODE, dan DAFTAR RUANG & WARNA di bagian bawah sheet JADWAL (ruang baru: beri warna pada kotak WARNA lalu tulis namanya).",
    "Simpan file (tetap format .xlsx), lalu di portal buka: Pengaturan › tab Jadwal Pelajaran › ⬆ Unggah Excel.",
    "Cek ringkasan yang muncul (jumlah kelas, hari, guru, mapel), pilih nama & ikon menu, lalu klik Terbitkan ke Menu."
   ].forEach((t,i)=>step(i+1,t,i%2?X.zebra:X.white));
@@ -2143,7 +2187,9 @@ function scBuildWB(D,isSample){
    "Baris istirahat / kegiatan non-belajar: isi kolom WAKTU, lalu tulis kata Istirahat (atau Upacara, Sholat, dll.) di kolom JAM KE — bukan angka. Kotak kelasnya dikosongkan.",
    "Menambah jam pelajaran: sisipkan baris di DALAM blok hari (jangan ada baris kosong di tengah blok). Blok yang terpotong baris kosong akan dianggap selesai.",
    "Judul kelas ditulis 2 baris: baris atas tingkat (X / XI / XII), baris bawah jurusan (ANM / TO1). Hasilnya dibaca sebagai \"X ANM\". Urutan & jumlah kelas harus sama di semua hari.",
-   "Boleh menambah hari: salin blok hari yang ada, ganti nama harinya. Blok hari boleh berdampingan (kiri-kanan) atau disusun ke bawah."
+   "Boleh menambah hari: salin blok hari yang ada, ganti nama harinya. Blok hari boleh berdampingan (kiri-kanan) atau disusun ke bawah.",
+   "SHIFT 1 dan SHIFT 2 digabung dalam satu tabel: nomor JAM KE berlanjut (mis. Shift 1 = jam 1–8, Shift 2 = jam 9–18). Kelas yang tidak masuk pada suatu shift cukup dikosongkan.",
+   "RUANG tidak ditulis dengan teks, hanya lewat WARNA kotak jadwal. Kotak berisi kode yang tidak diberi warna dianggap belum punya ruang. Gunakan warna polos (bukan gradasi/pola) yang sama persis dengan daftar."
   ].forEach((t,i)=>step(i+1,t,i%2?X.zebra:X.white));
   pr++;section("C. CARA MEMBACA KODE DI KOTAK JADWAL");
   hp.mergeCells(pr,2,pr,5);P(pr,2).value="Kode = HURUF (siapa gurunya) + ANGKA (pelajaran apa). Contoh dari data di file ini:";stl(P(pr,2),{i:true,bg:X.white});hp.getRow(pr).height=22;pr++;
@@ -2160,16 +2206,18 @@ function scBuildWB(D,isSample){
     P(pr,4).value=e[1];stl(P(pr,4),{bg,bd:true});P(pr,5).value=e[2];stl(P(pr,5),{bg,bd:true});
     hp.getRow(pr).height=Math.max(24,line(Math.max(e[1].length/26*105/1,e[2].length/62*105),105)*16+8);pr++;});
   pr++;section("D. ARTI WARNA & TAMPILAN");
-  [["Biru tua (judul kolom)","Header tabel — jangan diubah isinya.",X.pri,X.white],
+  [["Warna ruang (kotak kode)","Warna kotak jadwal = ruang yang dipakai kelas pada jam itu. Artinya lihat daftar RUANG & WARNA di bawah sheet JADWAL.","FFFFC7CE",X.ink],
+   ["Biru tua (judul kolom)","Header tabel — jangan diubah isinya.",X.pri,X.white],
    ["Kuning (baris jam)","Baris Istirahat / non-belajar. Tulis kata Istirahat di kolom JAM KE.",X.brk,X.brkTx],
    ["Warna per hari","Hanya hiasan agar mudah dibedakan; tidak mempengaruhi data.","FFDBEAFE",X.ink],
-   ["Putih / abu muda","Kotak yang diisi kode guru + mapel (bebas Anda isi).",X.white,X.ink]
+   ["Putih / abu muda","Kotak yang diisi kode guru + mapel. Bila belum diberi warna ruang, ruangnya dianggap kosong.",X.white,X.ink]
   ].forEach(([a,b,bg,co])=>{P(pr,2).value="";stl(P(pr,2),{bg,bd:true});P(pr,3).value=a;stl(P(pr,3),{b:true,bg:X.white,bd:true});
     hp.mergeCells(pr,4,pr,5);P(pr,4).value=b;stl(P(pr,4),{bg:X.white,bd:true});P(pr,5).border=box;hp.getRow(pr).height=24;pr++;});
   pr++;section("E. JIKA UNGGAHAN GAGAL / ADA PERINGATAN");
   [["Blok jadwal tidak ditemukan","Judul kolom HR / WAKTU / JAM KE terubah atau terhapus. Kembalikan seperti aslinya."],
    ["Kode tidak dikenali (tampil \"—\")","Huruf guru atau angka mapel di kotak jadwal belum ada di daftar bawah, atau salah ketik (contoh: \"I 3\" atau \"i-3\"). Tulis rapat tanpa spasi/tanda hubung: I3."],
    ["Kelas bergeser / jumlah tidak sama","Jumlah & urutan kolom kelas di semua hari harus sama persis."],
+   ["Ruang tidak terbaca / kosong","Kotak jadwal belum diberi warna, atau warnanya berbeda dengan daftar RUANG & WARNA. Pakai Format Painter dari kotak warna di daftar, dan simpan sebagai .xlsx."],
    ["Jam pelajaran hilang di tengah","Ada baris kosong di dalam blok hari. Hapus baris kosongnya (atau isi WAKTU & JAM KE)."]
   ].forEach(([a,b],i)=>{const bg=i%2?X.zebra:X.white;P(pr,2).value="!";stl(P(pr,2),{b:true,h:"center",ind:0,co:X.brkTx,bg:X.warnBg,bd:true});
     P(pr,3).value=a;stl(P(pr,3),{b:true,bg,bd:true});hp.mergeCells(pr,4,pr,5);P(pr,4).value=b;stl(P(pr,4),{bg,bd:true});P(pr,5).border=box;
@@ -2209,106 +2257,184 @@ function scDownloadBasic(){
   XLSX.writeFile(wb,"FORMAT_JADWAL_KBM.xlsx");
 }
 
-// ===== Pengaturan format jadwal (shift, kelas, jumlah jam, alokasi waktu, istirahat) =====
-const SC_KEY="sc_fmt_v1", SC_DAYS=["SENIN","SELASA","RABU","KAMIS","JUMAT","SABTU"];
-function scDefShift(name,cl,start){const d={};SC_DAYS.forEach(h=>d[h]=h==="SABTU"?{on:true,start,dur:30,count:5,br:"3:15"}:{on:true,start,dur:30,count:8,br:"4:15"});return{name,classes:cl,days:d};}
-let scFmt=(()=>{try{const x=JSON.parse(localStorage.getItem(SC_KEY));if(x&&x.shifts&&x.shifts.length)return x;}catch(e){}
-  return{cur:0,shifts:[scDefShift("Shift 1",SC_SAMPLE.classes.slice(),"07:15")]};})();
+// ===== Pengaturan format jadwal (Shift 1 + Shift 2 digabung, kelas, ruang berwarna) =====
+const SC_KEY="sc_fmt_v2", SC_DAYS=["SENIN","SELASA","RABU","KAMIS","JUMAT","SABTU"];
+const scBlkDef=(start,count,br)=>({start,dur:30,count,br});
+function scDefFmt(){const d={};
+  SC_DAYS.forEach(h=>d[h]=h==="SABTU"?{on:true,a:scBlkDef("07:15",5,"3:15"),b:scBlkDef("11:30",0,"")}:{on:true,a:scBlkDef("07:15",8,"4:15"),b:scBlkDef("11:30",10,"5:15")});
+  return{classes:SC_SAMPLE.classes.slice(),rooms:["Ruang 1","Ruang 2","Ruang 3","Ruang 4","Ruang 5","Ruang 6"],days:d};}
+function scLoadFmt(){
+  try{const x=JSON.parse(localStorage.getItem(SC_KEY));if(x&&x.days&&x.classes)return x;}catch(e){}
+  try{const o=JSON.parse(localStorage.getItem("sc_fmt_v1")); // migrasi dari format lama (per shift)
+    if(o&&o.shifts&&o.shifts.length){const f=scDefFmt(),s1=o.shifts[0],s2=o.shifts[1],cl=[],rm=[];
+      o.shifts.forEach(s=>s.classes.forEach(l=>{const q=String(l).split("|"),n=q[0].trim(),r=(q[1]||"").trim();if(n&&!cl.includes(n))cl.push(n);if(r&&!rm.includes(r))rm.push(r);}));
+      if(cl.length)f.classes=cl;if(rm.length)f.rooms=rm;
+      SC_DAYS.forEach(h=>{const g=(s,dflt)=>{const d=s&&s.days&&s.days[h];return d&&d.on?{start:d.start,dur:d.dur,count:d.count,br:d.br}:dflt;};
+        f.days[h]={on:true,a:g(s1,scBlkDef("07:15",0,"")),b:g(s2,scBlkDef("11:30",0,""))};});
+      return f;}}catch(e){}
+  return scDefFmt();
+}
+let scFmt=scLoadFmt();
 const scFmtSave=()=>{try{localStorage.setItem(SC_KEY,JSON.stringify(scFmt));}catch(e){}};
 const scP2=n=>String(n).padStart(2,"0"), scHM=x=>scP2(Math.floor(x/60))+"."+scP2(x%60);
-function scSlots(d){
-  if(!d||!d.on)return[];
-  const [h,m]=String(d.start||"07:00").split(":").map(Number);let t=h*60+m;const brs={};
-  String(d.br||"").split(",").forEach(s=>{const q=s.split(":").map(x=>parseInt(x,10));if(q[0]>0&&q[1]>0)brs[q[0]]=q[1];});
-  const out=[],dur=+d.dur||30;
-  for(let i=1;i<=(+d.count||0);i++){out.push({waktu:scHM(t)+" - "+scHM(t+dur),jam:String(i)});t+=dur;
+// satu blok shift -> daftar slot; nomor jam berlanjut dari n0
+function scBlk(b,n0,out){
+  if(!b||!(+b.count>0))return n0;
+  const [h,m]=String(b.start||"07:00").split(":").map(Number);let t=h*60+m;const brs={};
+  String(b.br||"").split(",").forEach(s=>{const q=s.split(":").map(x=>parseInt(x,10));if(q[0]>0&&q[1]>0)brs[q[0]]=q[1];});
+  const dur=+b.dur||30;
+  for(let i=1;i<=+b.count;i++){out.push({waktu:scHM(t)+" - "+scHM(t+dur),jam:String(n0+i)});t+=dur;
     if(brs[i]){out.push({waktu:scHM(t)+" - "+scHM(t+brs[i]),jam:"Istirahat"});t+=brs[i];}}
-  return out;
+  return n0+ +b.count;
 }
+function scSlots(d){if(!d||!d.on)return[];const out=[],n=scBlk(d.a,0,out);scBlk(d.b,n,out);return out;}
+function scRoomMap(lines){const o={};(lines||[]).forEach(l=>{const q=String(l).split("|"),n=q[0].trim();if(!n||o[n])return;
+  const c=(q[1]||"").trim();o[n]=/^#[0-9a-f]{6}$/i.test(c)?c.toUpperCase():SC_PAL[Object.keys(o).length%SC_PAL.length];});return o;}
 function scFmtData(){
-  const s=scFmt.shifts[scFmt.cur],cl=s.classes.map(x=>x.trim()).filter(Boolean);
-  return{title:"JADWAL PROSES BELAJAR MENGAJAR "+s.name.toUpperCase(),subtitle:"(Berlaku Mulai ........)",classes:cl,guru:{},mapel:{},
-    days:SC_DAYS.filter(h=>s.days[h].on).map(h=>({hari:h,rows:scSlots(s.days[h]).map(w=>({...w,cells:cl.map(()=>"")}))}))};
+  const f=scFmt,cl=f.classes.map(l=>String(l).split("|")[0].trim()).filter(Boolean);
+  return{title:"JADWAL PROSES BELAJAR MENGAJAR",subtitle:"(Berlaku Mulai ........)",classes:cl,guru:{},mapel:{},rooms:{},roomList:scRoomMap(f.rooms),
+    days:SC_DAYS.filter(h=>f.days[h].on).map(h=>({hari:h,rows:scSlots(f.days[h]).map(w=>({...w,cells:cl.map(()=>"")}))}))};
 }
-function scPv(d){const s=scSlots(d);if(!s.length)return"Hari ini tidak ada KBM.";
-  const b=s.filter(x=>x.jam==="Istirahat").length;return`${s.length-b} jam pelajaran${b?` + ${b} istirahat`:""} · ${s[0].waktu.split(" - ")[0]} – ${s[s.length-1].waktu.split(" - ")[1]}`;}
+function scPv(d){
+  if(!d||!d.on)return "Hari ini tidak ada KBM.";
+  const a=[],n=scBlk(d.a,0,a),b=[];scBlk(d.b,n,b);
+  const f=(s,nm)=>{const nj=s.filter(x=>/^\d+$/.test(x.jam));if(!nj.length)return nm+": tidak ada";
+    return `${nm}: jam ke-${nj[0].jam}–${nj[nj.length-1].jam} (${nj.length} jam) · ${s[0].waktu.split(" - ")[0]} – ${s[s.length-1].waktu.split(" - ")[1]}`;};
+  return f(a,"Shift 1")+"<br>"+f(b,"Shift 2");
+}
 function scFmtRender(){
-  const box=$("sc_fmt");if(!box)return;const s=scFmt.shifts[scFmt.cur],cap=w=>w.charAt(0)+w.slice(1).toLowerCase();
+  const box=$("sc_fmt");if(!box)return;const f=scFmt,cap=w=>w.charAt(0)+w.slice(1).toLowerCase();
+  const blk=(d,k,t)=>`<div style="margin-top:8px"><label style="font-size:12.5px;color:var(--ink)">${t}</label><div class="scf-g">
+    <div><label>Mulai</label><input type="time" data-b="${k}" data-k="start" value="${d[k].start}"></div>
+    <div><label>Menit / jam</label><input type="number" min="5" data-b="${k}" data-k="dur" value="${d[k].dur}"></div>
+    <div><label>Jumlah jam</label><input type="number" min="0" max="20" data-b="${k}" data-k="count" value="${d[k].count}"></div>
+    <div><label>Istirahat (setelah jam:menit)</label><input data-b="${k}" data-k="br" value="${escapeHtml(d[k].br)}" placeholder="4:15, 8:10"></div></div></div>`;
   box.innerHTML=`<style>#sc_fmt input,#sc_fmt select,#sc_fmt textarea{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--ink);font:inherit;font-size:13px}
   #sc_fmt input[type=checkbox]{width:auto}#sc_fmt label{font-size:11.5px;color:var(--muted);font-weight:600}.scf-d{border:1px solid var(--border);border-radius:12px;padding:10px;margin-top:8px;background:var(--surface)}
-  .scf-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:8px;margin-top:8px}</style>
+  .scf-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:8px;margin-top:4px}.scf-rc{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+  .scf-rc span{display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:3px 8px;border-radius:999px;border:1px solid var(--border)}.scf-rc i{width:12px;height:12px;border-radius:50%;border:1px solid rgba(0,0,0,.2)}</style>
   <details open style="margin-bottom:14px"><summary style="cursor:pointer;font-weight:800;margin-bottom:8px">⚙ Pengaturan Format Jadwal</summary>
-  <p class="sc-note">Atur shift, kelas, jumlah jam &amp; alokasi waktu di sini. Tombol <b>Unduh Format Excel</b> akan membuat file kosong sesuai pengaturan. Tiap shift diunggah &amp; diterbitkan sebagai menu terpisah.</p>
-  <div class="row" style="gap:8px;margin-bottom:8px"><select id="scf_sel" style="flex:1">${scFmt.shifts.map((x,i)=>`<option value="${i}">${escapeHtml(x.name)}</option>`).join("")}</select>
-   <button class="btn btn-ghost" id="scf_add" type="button">+ Shift</button><button class="btn btn-ghost" id="scf_del" type="button">Hapus</button></div>
-  <label>Nama shift</label><input id="scf_name" value="${escapeHtml(s.name)}" style="margin-bottom:8px">
-  <label>Daftar kelas — satu per baris, contoh: X ANM (tambah baris untuk menambah kelas)</label><textarea id="scf_cls" rows="6">${escapeHtml(s.classes.join("\n"))}</textarea>
-  ${SC_DAYS.map(h=>{const d=s.days[h];return`<div class="scf-d" data-h="${h}"><label style="font-size:13px;color:var(--ink)"><input type="checkbox" data-k="on" ${d.on?"checked":""}> <b>${cap(h)}</b></label>
-   <div class="scf-g"><div><label>Mulai</label><input type="time" data-k="start" value="${d.start}"></div><div><label>Menit / jam</label><input type="number" min="5" data-k="dur" value="${d.dur}"></div>
-   <div><label>Jumlah jam</label><input type="number" min="0" max="20" data-k="count" value="${d.count}"></div><div><label>Istirahat (setelah jam:menit)</label><input data-k="br" value="${escapeHtml(d.br)}" placeholder="4:15, 8:10"></div>
-   <div><label>Salin alokasi dari</label><select data-k="copy"><option value="">— pilih hari —</option>${SC_DAYS.filter(x=>x!==h).map(x=>`<option value="${x}">${cap(x)}</option>`).join("")}</select></div></div>
+  <p class="sc-note">Shift 1 &amp; Shift 2 digabung dalam <b>satu tabel</b> (nomor jam berlanjut, mis. Shift 1 = jam 1–8, Shift 2 = jam 9–18). Ruang ditentukan <b>per jam</b> lewat <b>warna kotak</b> di Excel. Tombol <b>Unduh Format Excel</b> membuat file kosong sesuai pengaturan ini.</p>
+  <label>Daftar kelas (semua shift) — satu per baris, contoh: X ANM. Kelas yang tidak masuk di suatu shift cukup dikosongkan di Excel.</label><textarea id="scf_cls" rows="6">${escapeHtml(f.classes.join("\n"))}</textarea>
+  <label style="display:block;margin-top:8px">Daftar ruang &amp; warna — satu per baris: NAMA RUANG (warna dipilih otomatis) atau NAMA RUANG | #RRGGBB</label><textarea id="scf_rm" rows="5">${escapeHtml(f.rooms.join("\n"))}</textarea>
+  <div class="scf-rc" id="scf_rc"></div>
+  ${SC_DAYS.map(h=>{const d=f.days[h];return`<div class="scf-d" data-h="${h}"><label style="font-size:13px;color:var(--ink)"><input type="checkbox" data-k="on" ${d.on?"checked":""}> <b>${cap(h)}</b></label>
+   ${blk(d,"a","Shift 1")}${blk(d,"b","Shift 2 (isi jumlah jam 0 bila tidak ada)")}
+   <div style="margin-top:8px"><label>Salin alokasi dari</label><select data-k="copy"><option value="">— pilih hari —</option>${SC_DAYS.filter(x=>x!==h).map(x=>`<option value="${x}">${cap(x)}</option>`).join("")}</select></div>
    <div class="sc-note" data-pv style="margin-top:6px">${scPv(d)}</div></div>`;}).join("")}</details>`;
-  $("scf_sel").onchange=e=>{scFmt.cur=+e.target.value;scFmtSave();scFmtRender();};
-  $("scf_name").oninput=e=>{s.name=e.target.value;scFmtSave();};
-  $("scf_name").onchange=scFmtRender;
-  $("scf_cls").oninput=e=>{s.classes=e.target.value.split("\n");scFmtSave();};
-  $("scf_add").onclick=()=>{const c=JSON.parse(JSON.stringify(s));c.name="Shift "+(scFmt.shifts.length+1);SC_DAYS.forEach(h=>c.days[h].start="12:30");
-    scFmt.shifts.push(c);scFmt.cur=scFmt.shifts.length-1;scFmtSave();scFmtRender();showToast("Shift baru dibuat (salinan, mulai 12.30). Sesuaikan waktunya.","✅");};
-  $("scf_del").onclick=()=>{if(scFmt.shifts.length<2){showToast("Minimal harus ada satu shift.","⚠️");return;}
-    if(!confirm('Hapus "'+s.name+'"?'))return;scFmt.shifts.splice(scFmt.cur,1);scFmt.cur=0;scFmtSave();scFmtRender();};
-  box.querySelectorAll(".scf-d").forEach(el=>{const d=s.days[el.dataset.h];
-    el.querySelectorAll("[data-k]").forEach(i=>{const k=i.dataset.k;
-      if(k==="copy")i.onchange=()=>{if(!i.value)return;const src=s.days[i.value];Object.assign(d,{start:src.start,dur:src.dur,count:src.count,br:src.br,on:true});scFmtSave();scFmtRender();};
-      else i.oninput=()=>{d[k]=k==="on"?i.checked:(k==="dur"||k==="count")?(+i.value||0):i.value;scFmtSave();el.querySelector("[data-pv]").textContent=scPv(d);};});});
+  const chips=()=>{$("scf_rc").innerHTML=Object.entries(scRoomMap(f.rooms)).map(([n,c])=>`<span><i style="background:${c}"></i>${escapeHtml(n)}</span>`).join("");};chips();
+  $("scf_cls").oninput=e=>{f.classes=e.target.value.split("\n");scFmtSave();};
+  $("scf_rm").oninput=e=>{f.rooms=e.target.value.split("\n");scFmtSave();chips();};
+  box.querySelectorAll(".scf-d").forEach(el=>{const d=f.days[el.dataset.h];
+    el.querySelectorAll("[data-k]").forEach(i=>{const k=i.dataset.k,bk=i.dataset.b;
+      if(k==="copy")i.onchange=()=>{if(!i.value)return;const src=f.days[i.value];d.on=true;d.a={...src.a};d.b={...src.b};scFmtSave();scFmtRender();};
+      else if(k==="on")i.onchange=()=>{d.on=i.checked;scFmtSave();el.querySelector("[data-pv]").innerHTML=scPv(d);};
+      else i.oninput=()=>{d[bk][k]=(k==="dur"||k==="count")?(+i.value||0):i.value;scFmtSave();el.querySelector("[data-pv]").innerHTML=scPv(d);};});});
 }
 function scDownloadFmt(){
   const D=scFmtData();if(!D.classes.length){showToast("Isi daftar kelas dulu.","⚠️");return;}
   if(!D.days.length){showToast("Aktifkan minimal satu hari.","⚠️");return;}
-  const nm=scFmt.shifts[scFmt.cur].name;if($("sc_label").value.trim()==="Jadwal Pelajaran")$("sc_label").value="Jadwal "+nm;
-  scDownload(D,"blank","FORMAT_JADWAL_"+nm.replace(/[^\w]+/g,"_").toUpperCase()+".xlsx");
+  scDownload(D,"blank","FORMAT_JADWAL_KBM_SHIFT_1_2.xlsx");
 }
 
 // --- tampilan siswa/guru ---
+const scE=escapeHtml, scIsN=j=>/^\d+$/.test(j);
+// buang jam kosong di awal/akhir hari untuk satu kelas (kelas Shift 1 tidak melihat jam Shift 2, dan sebaliknya)
+function scTrim(rows,idx){let f=-1,l=-1;rows.forEach((r,i)=>{if(scIsN(r.jam)&&r.cells[idx]){if(f<0)f=i;l=i;}});return f<0?[]:rows.slice(f,l+1);}
+const scDot=(S,n)=>{const c=n&&scRoomList(S)[n];return c?`<i style="background:${c}"></i>`:"";};
 function scCard(d){
-  const now=new Date(),nm=now.getHours()*60+now.getMinutes(),today=d.hari===SC_HARI[now.getDay()],S=scSt.item.schedule;
+  const now=new Date(),nm=now.getHours()*60+now.getMinutes(),today=d.hari===SC_HARI[now.getDay()],S=scSt.item.schedule,kelas=scSt.mode==="kelas";
+  const rows=kelas?scTrim(d.rows,+scSt.sel):d.rows;
+  if(!rows.length)return {n:0,html:""};
   let n=0;
-  const html=d.rows.map(r=>{
-    if(!/^\d+$/.test(r.jam))return `<div class="sc-row br"><span></span><span>${escapeHtml(r.waktu)}</span><span>${escapeHtml(r.jam)}</span></div>`;
+  const html=rows.map(r=>{
+    if(!scIsN(r.jam))return `<div class="sc-row br"><span></span><span>${scE(r.waktu)}</span><span>${scE(r.jam)}</span></div>`;
     let inner;
-    if(scSt.mode==="kelas"){const x=scDec(r.cells[+scSt.sel]);
-      inner=x?`<div class="sc-tx"><b style="--c:${scCol(x.m)}">${escapeHtml(S.mapel[x.m]||r.cells[+scSt.sel])}</b><small>${escapeHtml(S.guru[x.g]||x.g)}</small></div>`:'<span class="sc-tm">—</span>';
+    if(kelas){const i=+scSt.sel,x=scDec(r.cells[i]),rn=x?scRoomOf(S,r,i):"";
+      inner=x?`<div class="sc-tx"><b style="--c:${scCol(x.m)}">${scE(S.mapel[x.m]||r.cells[i])}</b><small>${scE(S.guru[x.g]||x.g)}</small>${rn?`<span class="sc-rm">${scDot(S,rn)}${scE(rn)}</span>`:""}</div>`:'<span class="sc-tm">—</span>';
     }else{
-      const ms=S.classes.map((c,i)=>({c,x:scDec(r.cells[i])})).filter(o=>o.x&&o.x.g===scSt.sel);
+      const ms=S.classes.map((c,i)=>({c,x:scDec(r.cells[i]),rn:scRoomOf(S,r,i)})).filter(o=>o.x&&o.x.g===scSt.sel);
       if(!ms.length)return "";n++;
-      inner=`<div class="sc-tx"><b style="--c:${scCol(ms[0].x.m)}">${escapeHtml(S.mapel[ms[0].x.m]||ms[0].x.m)}</b><small>${escapeHtml(ms.map(o=>o.c).join(", "))}</small></div>`;
+      const rs=[...new Set(ms.map(o=>o.rn).filter(Boolean))];
+      inner=`<div class="sc-tx"><b style="--c:${scCol(ms[0].x.m)}">${scE(S.mapel[ms[0].x.m]||ms[0].x.m)}</b><small>${scE(ms.map(o=>o.c).join(", "))}</small>${rs.length?`<span class="sc-rm">${scDot(S,rs[0])}${scE(rs.join(", "))}</span>`:""}</div>`;
     }
     const t=scRng(r.waktu),on=today&&t&&nm>=t[0]&&nm<t[1];
-    return `<div class="sc-row${on?" now":""}"><span class="sc-jm">${escapeHtml(r.jam)}</span><span class="sc-tm">${escapeHtml(r.waktu)}</span>${inner}</div>`;
+    return `<div class="sc-row${on?" now":""}"><span class="sc-jm">${scE(r.jam)}</span><span class="sc-tm">${scE(r.waktu)}</span>${inner}</div>`;
   }).join("");
-  if(scSt.mode==="guru"&&!n)return {n:0,html:""};
-  return {n,html:`<section class="sc-card${today?" today":""}"><h3>${escapeHtml(d.hari)}${today?'<span class="sc-badge">Hari ini</span>':""}</h3>${html}</section>`};
+  if(!kelas&&!n)return {n:0,html:""};
+  return {n,html:`<section class="sc-card${today?" today":""}"><h3>${scE(d.hari)}${today?'<span class="sc-badge">Hari ini</span>':""}</h3>${html}</section>`};
 }
 // --- Unduh PDF sesuai filter yang sedang tampil (kelas/guru + hari) ---
+function scPdfFoot(doc){
+  const pw=doc.internal.pageSize.getWidth(),ph=doc.internal.pageSize.getHeight(),pg=doc.getNumberOfPages(),
+    tgl=new Date().toLocaleDateString("id-ID",{day:"numeric",month:"long",year:"numeric"});
+  for(let i=1;i<=pg;i++){doc.setPage(i);doc.setFont("helvetica","normal").setFontSize(8).setTextColor(100,116,139);
+    doc.text(`Dicetak ${tgl}  |  Hal. ${i}/${pg}`,pw/2,ph-6,{align:"center"});}
+}
+// PDF semua kelas: matriks berisi KODE guru+mapel, kotak diwarnai sesuai ruang, lalu keterangan kode & warna ruang
+function scPdfAll(doc,S,cap){
+  const pw=doc.internal.pageSize.getWidth(),ph=doc.internal.pageSize.getHeight(),RL=scRoomList(S),rl=Object.entries(RL),nc=S.classes.length,hasR=rl.length>0;
+  const days=S.days.filter(d=>scSt.day==="ALL"||d.hari===scSt.day);
+  if(!days.length||!nc){showToast("Tidak ada jadwal untuk diunduh.","⚠️");return;}
+  let y=12;
+  doc.setFont("helvetica","bold").setFontSize(13).setTextColor(30,41,59);
+  const tl=doc.splitTextToSize(String(S.title||scSt.item.label||"Jadwal Pelajaran"),pw-30);
+  doc.text(tl,pw/2,y,{align:"center"});y+=tl.length*5.5;
+  if(S.subtitle){doc.setFont("helvetica","italic").setFontSize(9.5);doc.text(String(S.subtitle),pw/2,y,{align:"center"});y+=5;}
+  doc.setFont("helvetica","bold").setFontSize(11).setTextColor(79,70,229);
+  doc.text("Semua Kelas  |  "+(scSt.day==="ALL"?"Semua hari":"Hari "+cap(scSt.day))+"  |  Kode = huruf guru + angka mapel"+(hasR?"  |  Warna kotak = ruang":""),pw/2,y+2,{align:"center"});y+=8;
+  days.forEach(d=>{
+    const body=d.rows.map(r=>scIsN(r.jam)?[r.jam,r.waktu,...S.classes.map((_,i)=>{const v=r.cells[i]||"",rn=v?scRoomOf(S,r,i):"",c=rn&&RL[rn]?scRGB(RL[rn]):null;return c?{content:v,styles:{fillColor:c}}:v;})]
+      :[{content:`${r.jam}  (${r.waktu})`,colSpan:nc+2,styles:{halign:"center",fontStyle:"italic",fillColor:[254,243,199],textColor:[146,64,14]}}]);
+    const head=[[{content:d.hari,colSpan:nc+2,styles:{halign:"left",fontSize:11}}],["Jam","Waktu",...S.classes]];
+    if(y>25&&y+18+body.length*6.4>ph-12){doc.addPage();y=12;}
+    doc.autoTable({startY:y,margin:{left:10,right:10,bottom:12},theme:"grid",rowPageBreak:"avoid",head,body,
+      styles:{fontSize:8.5,cellPadding:1.6,halign:"center",lineColor:[203,213,225],lineWidth:.15,textColor:[30,41,59]},
+      headStyles:{fillColor:[224,231,255],textColor:[55,48,163],fontStyle:"bold"},alternateRowStyles:{fillColor:[248,250,252]},
+      columnStyles:{0:{cellWidth:12,fontStyle:"bold"},1:{cellWidth:28}},
+      didParseCell:h=>{if(h.section!=="head")return;
+        if(h.row.index===0){h.cell.styles.fillColor=[79,70,229];h.cell.styles.textColor=[255,255,255];}}});
+    y=doc.lastAutoTable.finalY+5;
+  });
+  const gk=Object.keys(S.guru).sort(),mk=Object.keys(S.mapel).sort((a,b)=>a-b);
+  const tabs=[[["Kode Guru","Nama Guru"],gk.map(k=>[k,S.guru[k]]),18],[["Kode Mapel","Mata Pelajaran"],mk.map(k=>[k,S.mapel[k]]),20]];
+  if(hasR)tabs.push([["Warna","Ruang"],rl.map(([n])=>["",n]),16,rl.map(([,c])=>scRGB(c))]);
+  const k=tabs.length,tw=(pw-20-4*(k-1))/k,need=16+Math.max(...tabs.map(t=>t[1].length))*5.4;
+  if(y+need>ph-12){doc.addPage();y=12;}
+  doc.setFont("helvetica","bold").setFontSize(10.5).setTextColor(30,41,59);doc.text("Keterangan Kode & Ruang",10,y+3);y+=6;
+  tabs.forEach((t,i)=>{const x=10+i*(tw+4);
+    doc.autoTable({startY:y,margin:{left:x,right:pw-x-tw,bottom:12},tableWidth:tw,theme:"grid",head:[t[0]],body:t[1],
+      styles:{fontSize:8,cellPadding:1.2,lineColor:[203,213,225],lineWidth:.15,textColor:[30,41,59]},
+      headStyles:{fillColor:[79,70,229],textColor:[255,255,255]},columnStyles:{0:{cellWidth:t[2],halign:"center",fontStyle:"bold"}},
+      didParseCell:h=>{if(t[3]&&h.section==="body"&&h.column.index===0&&t[3][h.row.index])h.cell.styles.fillColor=t[3][h.row.index];}});});
+  scPdfFoot(doc);
+  doc.save("JADWAL_SEMUA_KELAS"+(scSt.day==="ALL"?"":"_"+scSt.day)+".pdf");
+  showToast("PDF semua kelas diunduh.","✅");
+}
 function scPdf(){
   const lib=window.jspdf&&window.jspdf.jsPDF;
   if(!lib){showToast("Pustaka PDF belum termuat. Periksa koneksi internet.","⚠️");return;}
-  const doc=new lib({unit:"mm",format:"a4"});
+  const allc=scSt.mode==="kelas"&&scSt.sel==="ALL";
+  const doc=new lib({unit:"mm",format:"a4",orientation:allc?"landscape":"portrait"});
   if(typeof doc.autoTable!=="function"){showToast("Pustaka tabel PDF belum termuat.","⚠️");return;}
-  const S=scSt.item.schedule,kelas=scSt.mode==="kelas",cap=w=>w.charAt(0)+w.slice(1).toLowerCase();
+  const S=scSt.item.schedule,kelas=scSt.mode==="kelas",cap=w=>w.charAt(0)+w.slice(1).toLowerCase(),RL=scRoomList(S);
+  if(allc){scPdfAll(doc,S,cap);return;}
   const who=kelas?(S.classes[+scSt.sel]||""):(scSt.sel+" - "+(S.guru[scSt.sel]||scSt.sel));
+  const rc=rn=>{const c=rn&&RL[rn]?scRGB(RL[rn]):null;return c?{content:rn,styles:{fillColor:c}}:(rn||"-");};
   let total=0;const blocks=[];
   S.days.filter(d=>scSt.day==="ALL"||d.hari===scSt.day).forEach(d=>{
     const body=[];let n=0;
-    d.rows.forEach(r=>{
-      if(!/^\d+$/.test(r.jam)){
-        if(kelas)body.push([{content:`${r.jam}  (${r.waktu})`,colSpan:4,styles:{halign:"center",fontStyle:"italic",fillColor:[254,243,199],textColor:[146,64,14]}}]);
+    (kelas?scTrim(d.rows,+scSt.sel):d.rows).forEach(r=>{
+      if(!scIsN(r.jam)){
+        if(kelas)body.push([{content:`${r.jam}  (${r.waktu})`,colSpan:5,styles:{halign:"center",fontStyle:"italic",fillColor:[254,243,199],textColor:[146,64,14]}}]);
         return;}
-      if(kelas){const x=scDec(r.cells[+scSt.sel]);n++;
-        body.push([r.jam,r.waktu,x?(S.mapel[x.m]||r.cells[+scSt.sel]):"-",x?(S.guru[x.g]||x.g):"-"]);
+      if(kelas){const i=+scSt.sel,x=scDec(r.cells[i]);n++;
+        body.push([r.jam,r.waktu,x?(S.mapel[x.m]||r.cells[i]):"-",x?(S.guru[x.g]||x.g):"-",x?rc(scRoomOf(S,r,i)):"-"]);
       }else{
-        const ms=S.classes.map((c,i)=>({c,x:scDec(r.cells[i])})).filter(o=>o.x&&o.x.g===scSt.sel);
+        const ms=S.classes.map((c,i)=>({c,x:scDec(r.cells[i]),rn:scRoomOf(S,r,i)})).filter(o=>o.x&&o.x.g===scSt.sel);
         if(!ms.length)return;n++;total++;
-        body.push([r.jam,r.waktu,S.mapel[ms[0].x.m]||ms[0].x.m,ms.map(o=>o.c).join(", ")]);
+        const rs=[...new Set(ms.map(o=>o.rn).filter(Boolean))];
+        body.push([r.jam,r.waktu,S.mapel[ms[0].x.m]||ms[0].x.m,ms.map(o=>o.c).join(", "),rs.length===1?rc(rs[0]):(rs.join(", ")||"-")]);
       }});
     if(n)blocks.push({hari:d.hari,body});
   });
@@ -2326,32 +2452,41 @@ function scPdf(){
   blocks.forEach(b=>{
     if(y>20&&y+16+b.body.length*7.6>281){doc.addPage();y=14;}
     doc.autoTable({startY:y,margin:{left:14,right:14,bottom:16},theme:"grid",rowPageBreak:"avoid",
-      head:[[{content:b.hari,colSpan:4,styles:{halign:"left",fontSize:11}}],["Jam","Waktu","Mata Pelajaran",kelas?"Guru":"Kelas"]],body:b.body,
+      head:[[{content:b.hari,colSpan:5,styles:{halign:"left",fontSize:11}}],["Jam","Waktu","Mata Pelajaran",kelas?"Guru":"Kelas","Ruang"]],body:b.body,
       styles:{fontSize:9.5,cellPadding:2,lineColor:[203,213,225],lineWidth:.15,textColor:[30,41,59]},
       headStyles:{fillColor:[224,231,255],textColor:[55,48,163],fontStyle:"bold"},
       alternateRowStyles:{fillColor:[248,250,252]},
-      columnStyles:{0:{cellWidth:14,halign:"center",fontStyle:"bold"},1:{cellWidth:36,halign:"center"}},
-      didParseCell:h=>{if(h.section!=="head")return;if(h.row.index===0){h.cell.styles.fillColor=[79,70,229];h.cell.styles.textColor=[255,255,255];}else if(h.column.index<2)h.cell.styles.halign="center";}});
+      columnStyles:{0:{cellWidth:14,halign:"center",fontStyle:"bold"},1:{cellWidth:34,halign:"center"},4:{cellWidth:28,halign:"center"}},
+      didParseCell:h=>{if(h.section!=="head")return;if(h.row.index===0){h.cell.styles.fillColor=[79,70,229];h.cell.styles.textColor=[255,255,255];}else if(h.column.index<2||h.column.index===4)h.cell.styles.halign="center";}});
     y=doc.lastAutoTable.finalY+6;
   });
-  const pg=doc.getNumberOfPages(),tgl=new Date().toLocaleDateString("id-ID",{day:"numeric",month:"long",year:"numeric"});
-  for(let i=1;i<=pg;i++){doc.setPage(i);doc.setFont("helvetica","normal").setFontSize(8).setTextColor(100,116,139);
-    doc.text(`Dicetak ${tgl}  |  Hal. ${i}/${pg}`,105,290,{align:"center"});}
+  scPdfFoot(doc);
   const safe=t=>String(t).replace(/[^\w]+/g,"_").replace(/^_|_$/g,"");
   doc.save(`JADWAL_${kelas?"KELAS":"GURU"}_${safe(kelas?who:(S.guru[scSt.sel]||scSt.sel))}${scSt.day==="ALL"?"":"_"+scSt.day}.pdf`);
   showToast("PDF diunduh.","✅");
 }
+const SC_MXCSS=".sc-mx{border-collapse:collapse;width:100%;font-size:12px}.sc-mx th,.sc-mx td{border:1px solid var(--border);padding:5px 6px;text-align:center;white-space:nowrap}.sc-mx th{background:var(--primary);color:#fff}.sc-mx tr.br td{background:rgba(245,158,11,.15);font-style:italic}.sc-mx td:first-child{font-weight:700}.sc-cr{display:block;font-size:9.5px;font-weight:500;opacity:.7}.sc-rm{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--muted);padding-left:12px;margin-top:2px}.sc-rm i{width:10px;height:10px;border-radius:50%;display:inline-block;border:1px solid rgba(0,0,0,.2)}.sc-lg{display:flex;flex-wrap:wrap;gap:4px 14px;margin:6px 0 12px}.sc-lg .sc-rm{padding-left:0;font-size:12px}";
+function scCardAll(d){
+  const S=scSt.item.schedule,nc=S.classes.length,RL=scRoomList(S);
+  const rows=d.rows.map(r=>scIsN(r.jam)?`<tr><td>${scE(r.jam)}</td><td>${scE(r.waktu)}</td>${S.classes.map((_,i)=>{const v=r.cells[i]||"",rn=v?scRoomOf(S,r,i):"",c=rn&&RL[rn];
+      return c?`<td style="background:${c};color:#1E293B" title="${scE(rn)}">${scE(v)}<small class="sc-cr">${scE(rn)}</small></td>`:`<td>${scE(v)}</td>`;}).join("")}</tr>`
+    :`<tr class="br"><td colspan="${nc+2}">${scE(r.jam)} (${scE(r.waktu)})</td></tr>`).join("");
+  return{n:1,html:`<section class="sc-card"><h3>${scE(d.hari)}</h3><div style="overflow-x:auto"><table class="sc-mx"><tr><th>Jam</th><th>Waktu</th>${S.classes.map(c=>`<th>${scE(c)}</th>`).join("")}</tr>${rows}</table></div></section>`};
+}
 function scRender(){
   const S=scSt.item.schedule,gk=Object.keys(S.guru).sort();
-  const opts=scSt.mode==="kelas"?S.classes.map((c,i)=>`<option value="${i}">${escapeHtml(c)}</option>`):gk.map(k=>`<option value="${k}">${escapeHtml(k)} · ${escapeHtml(S.guru[k])}</option>`);
-  const cards=S.days.filter(d=>scSt.day==="ALL"||d.hari===scSt.day).map(scCard);
+  const opts=scSt.mode==="kelas"?['<option value="ALL">Semua kelas</option>'].concat(S.classes.map((c,i)=>`<option value="${i}">${escapeHtml(c)}</option>`)):gk.map(k=>`<option value="${k}">${escapeHtml(k)} · ${escapeHtml(S.guru[k])}</option>`);
+  const all=scSt.mode==="kelas"&&scSt.sel==="ALL",RL=scRoomList(S);
+  const cards=S.days.filter(d=>scSt.day==="ALL"||d.hari===scSt.day).map(d=>all?scCardAll(d):scCard(d));
   const tot=cards.reduce((x,c)=>x+c.n,0);
   const cap=w=>w.charAt(0)+w.slice(1).toLowerCase();
-  $("scBody").innerHTML=`<p class="sc-note">${escapeHtml(S.subtitle||"")}</p>
+  const legend=all&&Object.keys(RL).length?`<div class="sc-lg">${Object.entries(RL).map(([n,c])=>`<span class="sc-rm"><i style="background:${c}"></i>${scE(n)}</span>`).join("")}</div>`:"";
+  $("scBody").innerHTML=`<style>${SC_MXCSS}</style><p class="sc-note">${escapeHtml(S.subtitle||"")}</p>
   <div class="sc-bar"><button class="sc-chip ${scSt.mode==="kelas"?"on":""}" data-m="kelas">Per Kelas</button><button class="sc-chip ${scSt.mode==="guru"?"on":""}" data-m="guru">Per Guru</button><select id="scSel">${opts.join("")}</select><button class="sc-chip" id="scPdf" type="button">⬇ Unduh PDF</button></div>
   <div class="sc-bar">${["ALL",...S.days.map(d=>d.hari)].map(h=>`<button class="sc-chip ${scSt.day===h?"on":""}" data-d="${h}">${h==="ALL"?"Semua hari":cap(h)}</button>`).join("")}</div>
   ${scSt.mode==="guru"?`<p class="sc-note">Total mengajar: <b>${tot} jam</b> per minggu (1 jam = 30 menit)</p>`:""}
-  <div class="sc-grid">${cards.map(c=>c.html).join("")||'<p class="sc-note">Tidak ada jadwal.</p>'}</div>`;
+  ${legend}
+  <div class="sc-grid"${all?' style="grid-template-columns:1fr"':""}>${cards.map(c=>c.html).join("")||'<p class="sc-note">Tidak ada jadwal.</p>'}</div>`;
   $("scPdf").onclick=scPdf;const sel=$("scSel");sel.value=scSt.sel;sel.onchange=()=>{scSt.sel=sel.value;scRender();};
   $("scBody").querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>{scSt.mode=b.dataset.m;scSt.sel=scSt.mode==="kelas"?"0":gk[0];scRender();});
   $("scBody").querySelectorAll("[data-d]").forEach(b=>b.onclick=()=>{scSt.day=b.dataset.d;scRender();});
@@ -2389,18 +2524,29 @@ function editSchedule(i){
 }
 function scSummary(D){
   const bad=new Set();D.days.forEach(d=>d.rows.forEach(r=>r.cells.forEach(c=>{const x=scDec(c);if(c&&(!x||!D.guru[x.g]||!D.mapel[x.m]))bad.add(c);})));
-  return `<span class="sc-ok">✓ Terbaca: ${D.classes.length} kelas, ${D.days.length} hari, ${Object.keys(D.guru).length} guru, ${Object.keys(D.mapel).length} mapel.</span>`+
-    (bad.size?`<br><span class="sc-warn">⚠ Kode tidak dikenali: ${[...bad].slice(0,15).map(escapeHtml).join(", ")} (tampil sebagai "—").</span>`:"");
+  const nr=Object.keys(scRoomList(D)).length,st=D.roomStat||{};
+  return `<span class="sc-ok">✓ Terbaca: ${D.classes.length} kelas, ${D.days.length} hari, ${Object.keys(D.guru).length} guru, ${Object.keys(D.mapel).length} mapel${nr?", "+nr+" ruang (dari warna kotak)":""}.</span>`+
+    (bad.size?`<br><span class="sc-warn">⚠ Kode tidak dikenali: ${[...bad].slice(0,15).map(escapeHtml).join(", ")} (tampil sebagai "—").</span>`:"")+
+    (st.none?`<br><span class="sc-warn">⚠ ${st.none} kotak jadwal belum diberi warna ruang (ruang tidak tampil untuk kotak itu).</span>`:"")+
+    (st.miss?`<br><span class="sc-warn">⚠ ${st.miss} kotak berwarna yang tidak cocok dengan daftar RUANG &amp; WARNA. Samakan warnanya (pakai Format Painter).</span>`:"");
+}
+// pembaca warna kotak (ExcelJS) untuk satu sheet; null bila tidak bisa dibaca
+async function scFillReader(buf,name){
+  if(typeof ExcelJS==="undefined")return null;
+  try{const wb=new ExcelJS.Workbook();await wb.xlsx.load(buf);const ws=wb.getWorksheet(name);if(!ws)return null;
+    return (r,c)=>{const f=ws.getCell(r+1,c+1).fill;return f&&f.type==="pattern"&&f.pattern==="solid"?scArgb(f.fgColor):null;};
+  }catch(e){return null;}
 }
 async function scOnFile(e){
   const f=e.target.files[0];if(!f)return;
   try{
     if(typeof XLSX==="undefined")throw new Error("Pustaka Excel belum termuat. Periksa koneksi internet.");
-    const wb=XLSX.read(await f.arrayBuffer());let D=null;
+    const buf=await f.arrayBuffer(),wb=XLSX.read(buf);let D=null,F=null;
     for(const n of wb.SheetNames){const sh=wb.Sheets[n];if(!sh||!sh["!ref"])continue;const rg=XLSX.utils.decode_range(sh["!ref"]);rg.s.r=0;rg.s.c=0;
-      const d=scParse(XLSX.utils.sheet_to_json(sh,{header:1,defval:"",raw:false,range:rg}));if(d.days.length){D=d;break;}}
+      const aoa=XLSX.utils.sheet_to_json(sh,{header:1,defval:"",raw:false,range:rg}),ff=await scFillReader(buf,n);
+      const d=scParse(aoa,ff);if(d.days.length){D=d;F=ff;break;}}
     if(!D)throw new Error("Blok jadwal (kolom HR / WAKTU / JAM KE) tidak ditemukan. Gunakan format dari tombol Unduh Format Excel.");
-    scPend=D;scMsg=scSummary(D);
+    scPend=D;scMsg=scSummary(D)+(F?"":'<br><span class="sc-warn">⚠ Warna ruang tidak dapat dibaca (gunakan file .xlsx dan pastikan koneksi internet aktif).</span>');
   }catch(x){scPend=null;scMsg=`<span class="sc-warn">✗ ${escapeHtml(x.message)}</span>`;}
   scAdmin();
 }
