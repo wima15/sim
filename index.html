@@ -341,7 +341,10 @@
   .field textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15); }
   #announcements { display: none; flex-direction: column; gap: 14px; margin-bottom: 32px; }
   .ann-head { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 800; color: var(--ink); letter-spacing: -0.1px; }
-  .ann-head svg { color: #F97316; }
+  .ann-head-ic { width: 28px; height: 28px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; color: #fff; background: #F97316; background: linear-gradient(135deg, #FDBA74, #F97316); box-shadow: 0 6px 12px -5px #F97316; }
+  .icon-select-pop { width: 250px; }
+  .icswatch-mini { padding: 4px; }
+  .ann-ev-date { display: inline-flex; align-items: center; gap: 6px; }
   .ann-count { background: var(--primary); color: #fff; font-size: 11px; font-weight: 800; padding: 1px 8px; border-radius: 100px; }
   .anncard {
     background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--ann-color, var(--primary));
@@ -380,7 +383,7 @@
   .ann-count-chip { padding: 3px 11px; border-radius: 100px; background: var(--ann-bg, var(--bg)); color: var(--ann-color, var(--primary)); font-weight: 800; }
   .ann-count-chip.today { background: var(--ann-color, var(--primary)); color: #fff; }
   .ann-count-chip.past { background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
-  .ann-pin { font-size: 11px; font-weight: 700; color: var(--muted); }
+  .ann-pin { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; color: var(--muted); }
   .pin-check { display: flex; align-items: center; gap: 10px; font-size: 13.5px; font-weight: 700; margin-bottom: 16px; cursor: pointer; }
   .pin-check input { width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer; }
   .existing.expired { opacity: 0.55; }
@@ -568,7 +571,7 @@
       <div id="annLinkRows"></div>
       <button type="button" class="btn btn-ghost" id="addAnnLinkBtn" style="font-size:13px; padding:10px 16px;">+ Tambah Tombol Link</button>
     </div>
-    <label class="pin-check"><input type="checkbox" id="annPinned"> 📌 Sematkan di paling atas</label>
+    <label class="pin-check"><input type="checkbox" id="annPinned"> <span style="display:inline-flex;align-items:center;gap:6px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg> Sematkan di paling atas</span></label>
     <div class="field">
       <label>Tanggal Kegiatan (opsional)</label>
       <div class="row" style="align-items:center;">
@@ -912,6 +915,29 @@ const ICONS = {
   }
 };
 
+Object.assign(ICONS, {
+  rocket:   { label: "Program / Inovasi", svg: '<path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>', theme: { bg: 'rgba(244, 63, 94, 0.12)', color: '#F43F5E', border: 'rgba(244, 63, 94, 0.25)' } },
+  trophy:   { label: "Prestasi", svg: '<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>', theme: { bg: 'rgba(234, 179, 8, 0.12)', color: '#CA8A04', border: 'rgba(234, 179, 8, 0.25)' } },
+  video:    { label: "Video / Streaming", svg: '<path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2"/>', theme: { bg: 'rgba(239, 68, 68, 0.12)', color: '#EF4444', border: 'rgba(239, 68, 68, 0.25)' } },
+  camera:   { label: "Dokumentasi", svg: '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>', theme: { bg: 'rgba(139, 92, 246, 0.12)', color: '#8B5CF6', border: 'rgba(139, 92, 246, 0.25)' } },
+  phone:    { label: "Kontak / Telepon", svg: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>', theme: { bg: 'rgba(34, 197, 94, 0.12)', color: '#16A34A', border: 'rgba(34, 197, 94, 0.25)' } },
+  mapPin:   { label: "Lokasi / Denah", svg: '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>', theme: { bg: 'rgba(249, 115, 22, 0.12)', color: '#F97316', border: 'rgba(249, 115, 22, 0.25)' } },
+  clock:    { label: "Waktu / Jam", svg: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>', theme: { bg: 'rgba(14, 165, 233, 0.12)', color: '#0284C7', border: 'rgba(14, 165, 233, 0.25)' } },
+  briefcase:{ label: "PKL / Karier", svg: '<rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>', theme: { bg: 'rgba(13, 148, 136, 0.12)', color: '#0D9488', border: 'rgba(13, 148, 136, 0.25)' } },
+  wrench:   { label: "Praktik / Jurusan", svg: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>', theme: { bg: 'rgba(245, 158, 11, 0.12)', color: '#D97706', border: 'rgba(245, 158, 11, 0.25)' } },
+  heart:    { label: "Kesiswaan", svg: '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>', theme: { bg: 'rgba(236, 72, 153, 0.12)', color: '#EC4899', border: 'rgba(236, 72, 153, 0.25)' } },
+  lock:     { label: "Login / Akun", svg: '<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>', theme: { bg: 'rgba(71, 85, 105, 0.12)', color: '#475569', border: 'rgba(71, 85, 105, 0.25)' } }
+});
+
+const UI_PIN = '<line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/>';
+function uiIco(inner, size){
+  size = size || 14;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">${inner}</svg>`;
+}
+function gradFor(c){
+  return `linear-gradient(135deg, color-mix(in srgb, ${c} 60%, #ffffff), ${c})`;
+}
+
 const ICON_KEYS = Object.keys(ICONS);
 
 function getIconTheme(key){
@@ -927,7 +953,7 @@ function iconBadgeHTML(iconKeyOrEmoji, size){
     const svgContent = typeof item === "string" ? item : item.svg;
     const theme = getIconTheme(key);
     
-    return `<div class="ic-badge" style="--card-bg:${theme.bg}; --card-color:${theme.color}; --card-border:${theme.border};">
+    return `<div class="ic-badge" style="--card-bg:${theme.bg}; --card-color:#fff; --card-border:transparent; background:${theme.color}; background:${gradFor(theme.color)}; color:#fff; box-shadow:0 6px 14px -5px ${theme.color};">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="${size}" height="${size}">${svgContent}</svg>
     </div>`;
   }
@@ -946,7 +972,9 @@ function buildIconPicker(){
     btn.style.setProperty("--icon-bg", theme.bg);
     
     btn.innerHTML = `
-      <svg viewBox="0 0 24 24" fill="none" stroke="${theme.color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${item.svg}</svg>
+      <span style="width:36px;height:36px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;background:${theme.color};background:${gradFor(theme.color)};box-shadow:0 5px 10px -4px ${theme.color};">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;">${item.svg}</svg>
+      </span>
       <span class="ic-lbl">${item.label}</span>
     `;
     btn.onclick = ()=>{
@@ -1038,7 +1066,7 @@ function buildIconSelector(currentIcon, onSelect){
     b.type = "button";
     b.className = "icswatch-mini";
     b.title = item.label;
-    b.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="${item.theme.color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">${item.svg}</svg>`;
+    b.innerHTML = `<span style="width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;background:${item.theme.color};background:${gradFor(item.theme.color)};"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15">${item.svg}</svg></span>`;
     b.onclick = (e)=>{
       e.stopPropagation();
       icon = "svg:" + key;
@@ -1677,7 +1705,7 @@ function renderAnnouncements(){
 
   const head = document.createElement("div");
   head.className = "ann-head";
-  head.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS.bell.svg}</svg><span>Pengumuman</span><span class="ann-count">${list.length}</span>`;
+  head.innerHTML = `<span class="ann-head-ic">${uiIco(ICONS.bell.svg, 15)}</span><span>Pengumuman</span><span class="ann-count">${list.length}</span>`;
   box.appendChild(head);
 
   const shown = annShowAll ? list : list.slice(0, ANN_LIMIT);
@@ -1693,9 +1721,9 @@ function renderAnnouncements(){
     card.style.setProperty("--ann-color", t.color);
     card.style.setProperty("--ann-bg", t.bg);
     card.innerHTML = `
-      <div class="ann-top"><span class="ann-badge">${t.label}</span>${isAnnNew(a) ? '<span class="ann-new">Baru</span>' : ""}${a.pinned ? '<span class="ann-pin">📌 Disematkan</span>' : ""}<span class="ann-date">${escapeHtml(formatAnnDate(a.date))}</span></div>
+      <div class="ann-top"><span class="ann-badge">${t.label}</span>${isAnnNew(a) ? '<span class="ann-new">Baru</span>' : ""}${a.pinned ? `<span class="ann-pin">${uiIco(UI_PIN, 12)} Disematkan</span>` : ""}<span class="ann-date">${escapeHtml(formatAnnDate(a.date))}</span></div>
       <h3 class="ann-title">${escapeHtml(a.title || "")}</h3>
-      ${dn !== null ? `<div class="ann-event"><span>📅 ${escapeHtml(formatEventDate(a.eventDate))}</span><span class="ann-count-chip${dn === 0 ? " today" : ""}${dn < 0 ? " past" : ""}">${countdownText(dn)}</span></div>` : ""}
+      ${dn !== null ? `<div class="ann-event"><span class="ann-ev-date">${uiIco(ICONS.calendar.svg, 14)} ${escapeHtml(formatEventDate(a.eventDate))}</span><span class="ann-count-chip${dn === 0 ? " today" : ""}${dn < 0 ? " past" : ""}">${countdownText(dn)}</span></div>` : ""}
       <div class="ann-body${long && !open ? " clamp" : ""}">${escapeHtml(content)}</div>
       ${long ? `<button type="button" class="ann-more">${open ? "Tutup" : "Selengkapnya"}</button>` : ""}
       ${btns.length ? `<div class="ann-links">${btns.map(l=>`<a class="ann-btn" href="${escapeHtml(l.url)}" target="_blank" rel="noopener noreferrer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS.link.svg}</svg>${escapeHtml(l.label || "Buka Link")}</a>`).join("")}</div>` : ""}`;
@@ -1766,7 +1794,7 @@ function renderAnnAdminList(){
     const active = isAnnActive(a);
     row.className = "existing" + (active ? "" : " expired");
     const endTxt = !a.end ? "" : (active ? " · Tampil sampai " + escapeHtml(formatAnnDateTime(a.end)) : ' · <span class="ann-expired-tag">Sudah berakhir</span>');
-    const extra = (eventDays(a.eventDate) !== null ? " · 📅 " + escapeHtml(formatEventDate(a.eventDate, true)) : "") + (a.pinned ? " · 📌 Disematkan" : "") + ((a.links && a.links.length) ? " · " + a.links.length + " link" : "");
+    const extra = (eventDays(a.eventDate) !== null ? " · Kegiatan " + escapeHtml(formatEventDate(a.eventDate, true)) : "") + (a.pinned ? " · " + uiIco(UI_PIN, 11) + " Disematkan" : "") + ((a.links && a.links.length) ? " · " + a.links.length + " link" : "");
     row.innerHTML = `
       <span class="ann-badge" style="--ann-color:${t.color}; --ann-bg:${t.bg};">${t.label}</span>
       <span class="meta"><span class="lb">${escapeHtml(a.title || "")}</span><span class="url">${escapeHtml(formatAnnDate(a.date))}${extra}${endTxt}</span></span>
