@@ -2725,18 +2725,20 @@ const KD_COL=["#EF4444","#3B82F6","#10B981","#F59E0B","#8B5CF6","#EC4899","#14B8
 let kdPend=null,kdIdx=null,kdIcon="svg:calendar",kdMsg="",kdItem=null;
 const kdP2=n=>String(n).padStart(2,"0");
 function kdMon(s){s=String(s).toLowerCase().slice(0,3);return KD_MON.findIndex(x=>x.split("|").includes(s))+1;}
-// terima: serial Excel, "20 Juli", "20/07", "20-7-2026", "2026-07-20"; tahun cadangan dari kolom TAHUN
-function kdDate(v,ty){
+// terima: serial Excel, "20 Juli", "20/07", "20-7-2026", "2026-07-20".
+// Tahun: dari teks -> kolom TAHUN -> otomatis dari Tahun Pelajaran (Jul-Des = tahun awal, Jan-Jun = tahun akhir)
+function kdDate(v,ty,sy){
   if(v===""||v==null)return null;
-  if(typeof v==="number"){const p=XLSX.SSF.parse_date_code(v);return p?{y:ty||p.y,m:p.m,d:p.d,x:!ty}:null;}
+  const inf=mo=>ty||(sy?(mo>=7?sy:sy+1):0);
+  if(typeof v==="number"){const p=XLSX.SSF.parse_date_code(v);if(!p)return null;const yr=inf(p.m)||p.y;return{y:yr,m:p.m,d:p.d,x:!ty};}
   const s=String(v).trim();let m=/^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s);
   if(m)return{y:+m[1],m:+m[2],d:+m[3],x:true};
   m=/^(\d{1,2})\s*[\/\-. ]\s*(\d{1,2}|[A-Za-z]+)(?:\s*[\/\-. ]\s*(\d{2,4}))?$/.exec(s);if(!m)return null;
   const mo=/^\d+$/.test(m[2])?+m[2]:kdMon(m[2]);if(!mo||mo>12||+m[1]<1||+m[1]>31)return null;
-  const yr=m[3]?(m[3].length===2?2000+ +m[3]:+m[3]):ty;return yr?{y:yr,m:mo,d:+m[1],x:!!m[3]}:null;
+  const yr=m[3]?(m[3].length===2?2000+ +m[3]:+m[3]):inf(mo);return yr?{y:yr,m:mo,d:+m[1],x:!!m[3]||!ty}:null;
 }
 const kdISO=o=>o.y+"-"+kdP2(o.m)+"-"+kdP2(o.d);
-function kdParse(aoa){
+function kdParse(aoa,sy){
   let h=aoa.findIndex(r=>r.some(c=>/kegiatan/i.test(String(c))));
   const ix={ty:1,s:2,e:3,k:4};
   if(h>=0)aoa[h].forEach((c,i)=>{const t=String(c).toLowerCase();
@@ -2745,7 +2747,7 @@ function kdParse(aoa){
   aoa.slice(h+1).forEach((r,n)=>{
     const k=String(r[ix.k]||"").trim();if(!k&&!String(r[ix.s]||"").trim())return;
     const ty=parseInt(r[ix.ty],10)||0,line=h+n+2;
-    const s=kdDate(r[ix.s],ty);let e=(r[ix.e]===""||r[ix.e]==null)?s:kdDate(r[ix.e],ty);
+    const s=kdDate(r[ix.s],ty,sy);let e=(r[ix.e]===""||r[ix.e]==null)?s:kdDate(r[ix.e],ty,sy);
     if(!k||!s||!e){bad.push(line);return;}
     if(kdISO(e)<kdISO(s)&&!e.x)e={...e,y:e.y+1};
     if(kdISO(e)<kdISO(s)){bad.push(line);return;}
@@ -2758,35 +2760,112 @@ function kdDownloadTpl(){
   if(typeof XLSX==="undefined"){showToast("Pustaka Excel belum termuat.","⚠️");return;}
   const ws=XLSX.utils.aoa_to_sheet([["NO","TAHUN","TANGGAL & BULAN MULAI","TANGGAL & BULAN AKHIR","KEGIATAN"],
     [1,2026,"13 Juli","18 Juli","Masa Pengenalan Lingkungan Sekolah"],[2,2026,"20 Juli","","Hari Pertama Masuk Sekolah"],
-    [3,2026,"17 Agustus","","Upacara HUT Kemerdekaan RI"],[4,2026,"21 Desember","3 Januari","Libur Semester Ganjil"]]);
+    [3,2026,"17 Agustus","","Upacara HUT Kemerdekaan RI"],[4,2026,"21 Desember","3 Januari","Libur Semester Ganjil"],[5,2027,"1 Mei","","Hari Buruh"],[6,2027,"14 Juni","19 Juni","Penilaian Akhir Tahun"]]);
   ws["!cols"]=[{wch:5},{wch:8},{wch:24},{wch:24},{wch:45}];
   const pt=XLSX.utils.aoa_to_sheet([["PETUNJUK"],["Isi sheet KALDIK mulai baris 2. Jangan ubah judul kolom."],
-    ["TAHUN: tahun kegiatan dimulai, misal 2026."],["TANGGAL & BULAN: tulis 20 Juli, 20/07, atau format tanggal Excel biasa."],
-    ["TANGGAL & BULAN AKHIR: kosongkan bila kegiatan hanya 1 hari."],["Kegiatan lintas tahun (21 Desember - 3 Januari): cukup isi TAHUN awal, tahun akhir otomatis."]]);
+    ["TAHUN: tahun kegiatan dimulai (2026 atau 2027). Boleh dikosongkan: otomatis dari Tahun Pelajaran (Juli-Desember = tahun awal, Januari-Juni = tahun akhir)."],["TANGGAL & BULAN: tulis 20 Juli, 20/07, atau format tanggal Excel biasa."],
+    ["TANGGAL & BULAN AKHIR: kosongkan bila kegiatan hanya 1 hari."],["Kegiatan lintas tahun (21 Desember - 3 Januari): cukup isi TAHUN awal, tahun akhir otomatis."],["Kaldik ditampilkan Juli - Juli sesuai nama Tahun Ajaran (contoh 2026/2027 = Juli 2026 s.d. Juli 2027). Berlaku untuk tahun berapa pun."]]);
   pt["!cols"]=[{wch:90}];
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"KALDIK");XLSX.utils.book_append_sheet(wb,pt,"PETUNJUK");
   XLSX.writeFile(wb,"Format_Kaldik.xlsx");
 }
 // --- tampilan kaldik ---
 function kdShort(iso){const p=iso.split("-");return +p[2]+" "+KD_BLN[+p[1]-1].slice(0,3);}
+function kdSYFromLabel(t){const m=/(\d{4})\s*[\/\-–]\s*(\d{2,4})/.exec(t||"");return m?+m[1]:0;}
+// tahun awal TP: dari nama tahun ajaran yang memuat kaldik ini -> tersimpan -> dari kegiatan paling awal
+function kdSY(item){
+  const y=cfg.years.find(y=>(y.links||[]).some(l=>l===item||(l.id&&l.id===item.id)));
+  let sy=y?kdSYFromLabel(y.label):0;
+  if(!sy)sy=item.kaldik.sy||0;
+  if(!sy){const e=item.kaldik.events||[];if(e.length){const a=e[0].s;sy=+a.slice(0,4)-(+a.slice(5,7)<7?1:0);}}
+  return sy;
+}
+// Juli tahun awal s.d. Juli tahun akhir (13 bulan). Jumlah hari dihitung otomatis (termasuk kabisat)
+function kdMonths(sy){const o=[];for(let i=0;i<13;i++){const t=6+i;o.push({y:sy+Math.floor(t/12),m:t%12+1});}return o;}
+function kdEvents(item){return (item.kaldik.events||[]).map((x,i)=>({...x,c:KD_COL[i%KD_COL.length]}));}
+function kdMonthInfo(y,m){
+  return{nd:new Date(y,m,0).getDate(),off:(new Date(y,m-1,1).getDay()+6)%7,pre:y+"-"+kdP2(m)+"-"};
+}
 function kdRender(){
-  const ev=(kdItem.kaldik.events||[]).map((x,i)=>({...x,c:KD_COL[i%KD_COL.length]}));
-  if(!ev.length){$("kdBody").innerHTML='<p class="sc-note" style="text-align:center;padding:40px 0">Belum ada kegiatan.</p>';return;}
-  let a=ev.reduce((m,x)=>x.s<m?x.s:m,ev[0].s),b=ev.reduce((m,x)=>x.e>m?x.e:m,ev[0].e);
-  let y=+a.slice(0,4),m=+a.slice(5,7);const ey=+b.slice(0,4),em=+b.slice(5,7),out=[];
-  for(let n=0;n<36&&(y<ey||(y===ey&&m<=em));n++){
-    const pre=y+"-"+kdP2(m)+"-",nd=new Date(y,m,0).getDate(),off=(new Date(y,m-1,1).getDay()+6)%7;
+  const ev=kdEvents(kdItem),sy=kdSY(kdItem);
+  if(!sy){$("kdBody").innerHTML='<p class="sc-note" style="text-align:center;padding:40px 0">Belum ada kegiatan.</p>';return;}
+  const out=kdMonths(sy).map(({y,m})=>{
+    const {nd,off,pre}=kdMonthInfo(y,m);
     let cells='<span></span>'.repeat(off);
     for(let d=1;d<=nd;d++){
       const iso=pre+kdP2(d),hit=ev.filter(x=>x.s<=iso&&iso<=x.e),sun=(off+d-1)%7===6;
       cells+=`<span class="kd-d${sun?" sun":""}${hit.length?" ev":""}${hit.length>1?" ev2":""}"${hit.length?` style="--c:${hit[0].c}${hit[1]?";--c2:"+hit[1].c:""}" title="${escapeHtml(hit.map(x=>x.k).join(" | "))}"`:""}>${d}</span>`;
     }
-    const first=pre+"01",last=pre+kdP2(nd),ms=ev.filter(x=>x.s<=last&&x.e>=first);
+    const ms=ev.filter(x=>x.s<=pre+kdP2(nd)&&x.e>=pre+"01");
     const ket=ms.length?ms.map(x=>`<li><i style="background:${x.c}"></i><span><b>${x.s===x.e?kdShort(x.s):kdShort(x.s)+" – "+kdShort(x.e)}</b> ${escapeHtml(x.k)}</span></li>`).join(""):'<li class="none">Tidak ada kegiatan</li>';
-    out.push(`<section class="kd-m"><h3>${KD_BLN[m-1]} ${y}</h3><div class="kd-wk">${["Sen","Sel","Rab","Kam","Jum","Sab","Min"].map(x=>`<span>${x}</span>`).join("")}</div><div class="kd-days">${cells}</div><ul class="kd-ket">${ket}</ul></section>`);
-    if(++m>12){m=1;y++;}
-  }
-  $("kdBody").innerHTML=`<p class="sc-note">Tanggal berwarna = ada kegiatan (titik kecil = ada lebih dari satu kegiatan). Keterangan ada di bawah tiap bulan.</p><div class="kd-grid">${out.join("")}</div>`;
+    return `<section class="kd-m"><h3>${KD_BLN[m-1]} ${y}</h3><div class="kd-wk">${["Sen","Sel","Rab","Kam","Jum","Sab","Min"].map(x=>`<span>${x}</span>`).join("")}</div><div class="kd-days">${cells}</div><ul class="kd-ket">${ket}</ul></section>`;
+  });
+  $("kdBody").innerHTML=`<div class="sc-bar"><b style="font-size:14px">Tahun Pelajaran ${sy}/${sy+1}</b><button class="sc-chip" id="kdPdf" type="button" style="margin-left:auto">⬇ Unduh PDF</button></div>
+  <p class="sc-note">Tanggal berwarna = ada kegiatan (titik kecil = lebih dari satu kegiatan). Keterangan ada di bawah tiap bulan.</p><div class="kd-grid">${out.join("")}</div>`;
+  $("kdPdf").onclick=kdPdf;
+}
+function kdPdf(){
+  if(!(window.jspdf&&window.jspdf.jsPDF)){showToast("Pustaka PDF belum termuat. Periksa koneksi internet.","⚠️");return;}
+  const doc=new window.jspdf.jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
+  const ev=kdEvents(kdItem),sy=kdSY(kdItem),W=210,H=297,M=10,G=4,COLS=2,CW=(W-2*M-G)/COLS,S=1.5;
+  const rgb=h=>[1,3,5].map(i=>parseInt(h.substr(i,2),16));
+  const title=sem=>{
+    doc.setFont("helvetica","bold");doc.setFontSize(16);doc.setTextColor(30,41,59);
+    doc.text("KALENDER AKADEMIK",W/2,M+5,{align:"center"});
+    doc.setFontSize(11);doc.setTextColor(79,70,229);doc.text("TAHUN PELAJARAN "+sy+"/"+(sy+1),W/2,M+11,{align:"center"});
+    doc.setFont("helvetica","normal");doc.setFontSize(8.5);doc.setTextColor(100,116,139);doc.text("SMK Widya Mandala Tambak  |  "+sem,W/2,M+16,{align:"center"});
+  };
+  const KL=2.9*S,DR=4.4*S;
+  const mons=kdMonths(sy).map(({y,m})=>{
+    const inf=kdMonthInfo(y,m),first=inf.pre+"01",last=inf.pre+kdP2(inf.nd);
+    const ms=ev.filter(x=>x.s<=last&&x.e>=first);
+    doc.setFontSize(6.4*S);doc.setFont("helvetica","normal");
+    const items=ms.map(x=>({c:x.c,lines:doc.splitTextToSize((x.s===x.e?kdShort(x.s):kdShort(x.s)+" - "+kdShort(x.e))+": "+x.k,CW-10)}));
+    const rows=Math.ceil((inf.off+inf.nd)/7);
+    const kh=items.length?items.reduce((a,b)=>a+b.lines.length*KL+0.8,0):KL+0.8;
+    return{y,m,inf,items,rows,h:6.5+5+rows*DR+2.5+kh+2.5};
+  });
+  // Halaman 1: Juli-Desember (Semester Ganjil), Halaman 2: Januari-Juli (Semester Genap)
+  const pages=[{sem:"Semester Ganjil",list:mons.slice(0,6)},{sem:"Semester Genap",list:mons.slice(6)}];
+  pages.forEach((pg,pi)=>{
+    if(pi>0)doc.addPage();
+    title(pg.sem);let y0=M+21;
+    for(let i=0;i<pg.list.length;i+=COLS){
+      const row=pg.list.slice(i,i+COLS),rh=Math.max(...row.map(o=>o.h));
+      if(y0+rh>H-M){doc.addPage();y0=M;}
+      row.forEach((o,k)=>{
+        const x=M+k*(CW+G),cwd=(CW-4)/7;
+        doc.setDrawColor(203,213,225);doc.setLineWidth(.3);doc.roundedRect(x,y0,CW,rh,2.5,2.5,"S");
+        doc.setFillColor(224,231,255);doc.roundedRect(x,y0,CW,6.5,2.5,2.5,"F");doc.rect(x,y0+3.5,CW,3,"F");
+        doc.setFont("helvetica","bold");doc.setFontSize(10);doc.setTextColor(49,46,129);doc.text(KD_BLN[o.m-1]+" "+o.y,x+CW/2,y0+4.5,{align:"center"});
+        ["Sen","Sel","Rab","Kam","Jum","Sab","Min"].forEach((w,j)=>{doc.setFontSize(7);doc.setTextColor(...(j===6?[220,38,38]:[100,116,139]));doc.text(w,x+2+j*cwd+cwd/2,y0+10.4,{align:"center"});});
+        for(let d=1;d<=o.inf.nd;d++){
+          const p=o.inf.off+d-1,cx=x+2+(p%7)*cwd+cwd/2,cy=y0+11.5+Math.floor(p/7)*DR+DR/2,iso=o.inf.pre+kdP2(d);
+          const hit=ev.filter(e=>e.s<=iso&&iso<=e.e);
+          if(hit.length){doc.setFillColor(...rgb(hit[0].c));doc.circle(cx,cy,2.5,"F");
+            if(hit[1]){doc.setFillColor(...rgb(hit[1].c));doc.setDrawColor(255,255,255);doc.setLineWidth(.25);doc.circle(cx+2.1,cy-2,.9,"FD");}}
+          doc.setFont("helvetica",hit.length?"bold":"normal");doc.setFontSize(8.2);
+          doc.setTextColor(...(hit.length?[255,255,255]:p%7===6?[220,38,38]:[30,41,59]));
+          doc.text(String(d),cx,cy+1.1,{align:"center"});
+        }
+        let ky=y0+11.5+o.rows*DR+3;
+        doc.setDrawColor(226,232,240);doc.setLineWidth(.25);doc.line(x+2.5,ky-1.6,x+CW-2.5,ky-1.6);
+        doc.setFont("helvetica","normal");doc.setFontSize(6.4*S);
+        if(!o.items.length){doc.setTextColor(148,163,184);doc.text("Tidak ada kegiatan",x+4,ky+1.3);}
+        o.items.forEach(it=>{
+          doc.setFillColor(...rgb(it.c));doc.circle(x+4.2,ky+.8,1.1,"F");
+          doc.setTextColor(30,41,59);doc.text(it.lines,x+6.8,ky+1.6,{lineHeightFactor:1.15});
+          ky+=it.lines.length*KL+.8;
+        });
+      });
+      if(pi===1&&row.length<COLS&&i+COLS>=pg.list.length){
+        const x=M+row.length*(CW+G);doc.setFont("helvetica","normal");doc.setFontSize(8);doc.setTextColor(100,116,139);
+        doc.text(doc.splitTextToSize("Keterangan: lingkaran berwarna = tanggal ada kegiatan; titik kecil di pojok = lebih dari satu kegiatan; angka merah = hari Minggu.",CW-6),x+3,y0+5);
+      }
+      y0+=rh+G;
+    }
+  });
+  doc.save("Kaldik_"+sy+"-"+(sy+1)+".pdf");
 }
 function openKaldik(item){kdItem=item;$("kdTitle").textContent=item.label||"Kalender Akademik";kdRender();openModal("kdOverlay");}
 // --- admin ---
@@ -2816,13 +2895,15 @@ async function kdOnFile(e){
   const f=e.target.files[0];if(!f)return;
   try{
     if(typeof XLSX==="undefined")throw new Error("Pustaka Excel belum termuat. Periksa koneksi internet.");
-    const wb=XLSX.read(await f.arrayBuffer());let R=null;
+    const wb=XLSX.read(await f.arrayBuffer());let R=null;const sy=kdSYFromLabel((getEditingYear()||{}).label);
     for(const n of wb.SheetNames){const aoa=XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:""});
-      if(aoa.some(r=>r.some(c=>/kegiatan/i.test(String(c))))){R=kdParse(aoa);break;}}
+      if(aoa.some(r=>r.some(c=>/kegiatan/i.test(String(c))))){R=kdParse(aoa,sy);break;}}
     if(!R)throw new Error("Kolom KEGIATAN tidak ditemukan. Gunakan format dari tombol Unduh Format Excel.");
     if(!R.events.length)throw new Error("Tidak ada baris kegiatan yang valid. Periksa kolom TAHUN dan tanggal.");
-    kdPend={events:R.events};
-    kdMsg=`<span class="sc-ok">✓ Terbaca ${R.events.length} kegiatan.</span>`+(R.bad.length?`<br><span class="sc-warn">⚠ Baris dilewati (tanggal/kegiatan tidak valid): ${R.bad.slice(0,15).join(", ")}.</span>`:"");
+    const sy2=sy||(+R.events[0].s.slice(0,4)-(+R.events[0].s.slice(5,7)<7?1:0));
+    const lo=sy2+"-07-01",hi=(sy2+1)+"-07-31",out=R.events.filter(x=>x.e<lo||x.s>hi).length;
+    kdPend={sy:sy2,events:R.events};
+    kdMsg=`<span class="sc-ok">✓ Terbaca ${R.events.length} kegiatan.</span>`+(out?`<br><span class="sc-warn">⚠ ${out} kegiatan di luar Juli ${sy2} – Juli ${sy2+1}, tidak akan tampil di kaldik.</span>`:"")+(R.bad.length?`<br><span class="sc-warn">⚠ Baris dilewati (tanggal/kegiatan tidak valid): ${R.bad.slice(0,15).join(", ")}.</span>`:"");
   }catch(x){kdPend=null;kdMsg=`<span class="sc-warn">✗ ${escapeHtml(x.message)}</span>`;}
   kdAdmin();
 }
@@ -2830,7 +2911,7 @@ function kdPublish(){
   if(!kdPend)return;
   const y=getEditingYear();y.links=y.links||[];
   const old=kdIdx!==null&&y.links[kdIdx]?y.links[kdIdx].id:null;
-  const item={type:"kaldik",id:old||("k"+uid().slice(1)),label:$("kd_label").value.trim()||"Kalender Akademik",icon:kdIcon||"svg:calendar",kaldik:kdPend};
+  const item={type:"kaldik",id:old||("k"+uid().slice(1)),label:$("kd_label").value.trim()||"Kalender Akademik",icon:kdIcon||"svg:calendar",kaldik:{...kdPend,sy:kdSYFromLabel(y.label)||kdPend.sy||0}};
   if(kdIdx!==null&&y.links[kdIdx])y.links[kdIdx]=item;else y.links.push(item);
   saveConfig("Kaldik berhasil diterbitkan ke menu!");kdReset();renderAdminList();render();renderPreview();kdAdmin();
 }
