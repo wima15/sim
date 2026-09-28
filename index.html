@@ -360,6 +360,29 @@
   .ann-more { margin-top: 8px; }
   .ann-toggle { align-self: center; padding: 8px 16px; border: 1px solid var(--border); border-radius: 100px; background: var(--surface); }
   .ann-toggle:hover { border-color: var(--primary); }
+  .searchbar { position: relative; margin-bottom: 24px; }
+  .searchbar svg { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+  .searchbar input {
+    width: 100%; padding: 13px 18px 13px 48px; border-radius: 100px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--ink); font-size: 14.5px; font-family: inherit; font-weight: 500; box-shadow: var(--shadow-sm);
+  }
+  .searchbar input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15); }
+  #noResult { display: none; text-align: center; padding: 40px 20px; color: var(--muted); font-weight: 600; font-size: 14px; }
+  .ann-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .ann-btn {
+    display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 100px; text-decoration: none;
+    background: var(--ann-bg, var(--bg)); color: var(--ann-color, var(--primary)); font-size: 12.5px; font-weight: 700;
+    border: 1px solid transparent; transition: all 0.2s;
+  }
+  .ann-btn:hover { background: var(--ann-color, var(--primary)); color: #fff; }
+  .ann-new { font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; padding: 3px 9px; border-radius: 100px; background: #EF4444; color: #fff; flex-shrink: 0; }
+  .ann-event { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; font-size: 12.5px; font-weight: 700; color: var(--muted); }
+  .ann-count-chip { padding: 3px 11px; border-radius: 100px; background: var(--ann-bg, var(--bg)); color: var(--ann-color, var(--primary)); font-weight: 800; }
+  .ann-count-chip.today { background: var(--ann-color, var(--primary)); color: #fff; }
+  .ann-count-chip.past { background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
+  .ann-pin { font-size: 11px; font-weight: 700; color: var(--muted); }
+  .pin-check { display: flex; align-items: center; gap: 10px; font-size: 13.5px; font-weight: 700; margin-bottom: 16px; cursor: pointer; }
+  .pin-check input { width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer; }
   .existing.expired { opacity: 0.55; }
   .ann-expired-tag { color: var(--danger); font-weight: 700; }
   #annTypeToggle .type-toggle-btn { padding: 9px 4px; font-size: 12.5px; }
@@ -413,6 +436,11 @@
   </div>
   <section id="announcements" aria-label="Pengumuman"></section>
   <div id="banner"></div>
+  <div class="searchbar" id="searchWrap" style="display:none;">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+    <input id="linkSearch" type="search" placeholder="Cari layanan atau aplikasi..." autocomplete="off">
+  </div>
+  <div id="noResult">Tidak ada layanan yang cocok dengan pencarian.</div>
   <div id="empty" style="display:none;">
     <div class="big">
       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
@@ -534,6 +562,20 @@
     <div class="field">
       <label>Isi Pengumuman</label>
       <textarea id="annContent" rows="4" placeholder="Tulis isi pengumuman di sini..."></textarea>
+    </div>
+    <div class="field">
+      <label>Tombol Link (opsional, maks. 5)</label>
+      <div id="annLinkRows"></div>
+      <button type="button" class="btn btn-ghost" id="addAnnLinkBtn" style="font-size:13px; padding:10px 16px;">+ Tambah Tombol Link</button>
+    </div>
+    <label class="pin-check"><input type="checkbox" id="annPinned"> 📌 Sematkan di paling atas</label>
+    <div class="field">
+      <label>Tanggal Kegiatan (opsional)</label>
+      <div class="row" style="align-items:center;">
+        <input type="date" id="annEvent" style="flex:1;">
+        <button type="button" class="btn btn-ghost" id="clearAnnEventBtn" style="width:auto; padding:11px 14px; font-size:13px;">Kosongkan</button>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-top:6px;font-weight:500;">Jika diisi, card menampilkan hitung mundur seperti "Tinggal 5 hari lagi".</div>
     </div>
     <div class="field">
       <label>Tampil Sampai (opsional)</label>
@@ -926,12 +968,20 @@ function render(){
   grid.innerHTML = "";
   renderElements();
   renderAnnouncements();
+  $("searchWrap").style.display = (links && links.length) ? "block" : "none";
+  $("noResult").style.display = "none";
   if(!links || links.length === 0){
     empty.style.display = "block";
     return;
   }
   empty.style.display = "none";
-  links.forEach(l=>{
+  const q = ($("linkSearch").value || "").trim().toLowerCase();
+  const shownLinks = !q ? links : links.filter(l=>
+    (l.label || "").toLowerCase().includes(q) ||
+    (l.type === "group" && (l.links || []).some(x=>(x.label || "").toLowerCase().includes(q)))
+  );
+  $("noResult").style.display = (q && !shownLinks.length) ? "block" : "none";
+  shownLinks.forEach(l=>{
     let key = "link";
     if(l.icon && l.icon.indexOf("svg:") === 0) key = l.icon.slice(4);
     const theme = getIconTheme(key);
@@ -1245,6 +1295,7 @@ function renderYearSelect(){
 $("yearSelect").addEventListener("change", ()=>{
   viewerYearId = $("yearSelect").value;
   storeYear(viewerYearId);
+  $("linkSearch").value = "";
   render();
 });
 
@@ -1552,12 +1603,40 @@ const ANN_TYPES = {
 };
 const ANN_LIMIT = 3;
 let annType = "info", editingAnnId = null, annShowAll = false;
+let annLinkRows = [];
+const ANN_MAX_LINKS = 5;
 const annExpanded = new Set();
 
 function getAnnList(year){
   if(!year) return [];
   if(!Array.isArray(year.announcements)) year.announcements = [];
   return year.announcements;
+}
+function parseEventDate(str){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(str || "");
+  return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null;
+}
+function eventDays(str){
+  const d = parseEventDate(str);
+  if(!d) return null;
+  const t = new Date();
+  const today = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+  return Math.round((d - today) / 864e5);
+}
+function countdownText(n){
+  if(n === 0) return "Hari ini";
+  if(n === 1) return "Besok";
+  if(n > 1) return "Tinggal " + n + " hari lagi";
+  return "Sudah lewat";
+}
+function formatEventDate(str, short){
+  const d = parseEventDate(str);
+  if(!d) return "";
+  return d.toLocaleDateString("id-ID", short ? { day: "numeric", month: "short", year: "numeric" } : { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+}
+function isAnnNew(a){
+  const t = new Date(a.date).getTime();
+  return !isNaN(t) && (Date.now() - t) < 3 * 864e5;
 }
 function isAnnActive(a){
   if(!a.end) return true;
@@ -1578,7 +1657,7 @@ function toLocalInput(iso){
   return d.getFullYear() + "-" + p(d.getMonth()+1) + "-" + p(d.getDate()) + "T" + p(d.getHours()) + ":" + p(d.getMinutes());
 }
 function sortedAnn(year){
-  return getAnnList(year).slice().sort((a,b)=> String(b.date || "").localeCompare(String(a.date || "")));
+  return getAnnList(year).slice().sort((a,b)=> ((b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)) || String(b.date || "").localeCompare(String(a.date || "")));
 }
 function formatAnnDate(iso){
   try{
@@ -1607,15 +1686,19 @@ function renderAnnouncements(){
     const content = a.content || "";
     const long = content.length > 150 || content.split("\n").length > 3;
     const open = annExpanded.has(a.id);
+    const btns = (Array.isArray(a.links) ? a.links : []).filter(l=>l && /^https?:\/\//i.test(l.url || ""));
+    const dn = eventDays(a.eventDate);
     const card = document.createElement("article");
     card.className = "anncard";
     card.style.setProperty("--ann-color", t.color);
     card.style.setProperty("--ann-bg", t.bg);
     card.innerHTML = `
-      <div class="ann-top"><span class="ann-badge">${t.label}</span><span class="ann-date">${escapeHtml(formatAnnDate(a.date))}</span></div>
+      <div class="ann-top"><span class="ann-badge">${t.label}</span>${isAnnNew(a) ? '<span class="ann-new">Baru</span>' : ""}${a.pinned ? '<span class="ann-pin">📌 Disematkan</span>' : ""}<span class="ann-date">${escapeHtml(formatAnnDate(a.date))}</span></div>
       <h3 class="ann-title">${escapeHtml(a.title || "")}</h3>
+      ${dn !== null ? `<div class="ann-event"><span>📅 ${escapeHtml(formatEventDate(a.eventDate))}</span><span class="ann-count-chip${dn === 0 ? " today" : ""}${dn < 0 ? " past" : ""}">${countdownText(dn)}</span></div>` : ""}
       <div class="ann-body${long && !open ? " clamp" : ""}">${escapeHtml(content)}</div>
-      ${long ? `<button type="button" class="ann-more">${open ? "Tutup" : "Selengkapnya"}</button>` : ""}`;
+      ${long ? `<button type="button" class="ann-more">${open ? "Tutup" : "Selengkapnya"}</button>` : ""}
+      ${btns.length ? `<div class="ann-links">${btns.map(l=>`<a class="ann-btn" href="${escapeHtml(l.url)}" target="_blank" rel="noopener noreferrer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS.link.svg}</svg>${escapeHtml(l.label || "Buka Link")}</a>`).join("")}</div>` : ""}`;
     const more = card.querySelector(".ann-more");
     if(more) more.onclick = ()=>{ if(open) annExpanded.delete(a.id); else annExpanded.add(a.id); renderAnnouncements(); };
     box.appendChild(card);
@@ -1630,6 +1713,34 @@ function renderAnnouncements(){
     box.appendChild(tg);
   }
 }
+
+function renderAnnLinkRows(){
+  const wrap = $("annLinkRows");
+  if(!wrap) return;
+  wrap.innerHTML = "";
+  annLinkRows.forEach((row, i)=>{
+    const div = document.createElement("div");
+    div.className = "linkrow-mini";
+    const labelInput = document.createElement("input");
+    labelInput.placeholder = "Teks tombol"; labelInput.value = row.label || "";
+    labelInput.oninput = (e)=> row.label = e.target.value;
+    const urlInput = document.createElement("input");
+    urlInput.placeholder = "https://..."; urlInput.value = row.url || "";
+    urlInput.oninput = (e)=> row.url = e.target.value;
+    const rm = document.createElement("button");
+    rm.type = "button"; rm.className = "rm-row"; rm.setAttribute("aria-label", "Hapus tombol"); rm.textContent = "✕";
+    rm.onclick = ()=>{ annLinkRows.splice(i, 1); renderAnnLinkRows(); };
+    div.appendChild(labelInput); div.appendChild(urlInput); div.appendChild(rm);
+    wrap.appendChild(div);
+  });
+  const addBtn = $("addAnnLinkBtn");
+  if(addBtn) addBtn.style.display = annLinkRows.length >= ANN_MAX_LINKS ? "none" : "inline-flex";
+}
+$("addAnnLinkBtn").onclick = ()=>{
+  if(annLinkRows.length >= ANN_MAX_LINKS) return;
+  annLinkRows.push({ label: "", url: "" });
+  renderAnnLinkRows();
+};
 
 function setAnnType(t){
   annType = t;
@@ -1655,9 +1766,10 @@ function renderAnnAdminList(){
     const active = isAnnActive(a);
     row.className = "existing" + (active ? "" : " expired");
     const endTxt = !a.end ? "" : (active ? " · Tampil sampai " + escapeHtml(formatAnnDateTime(a.end)) : ' · <span class="ann-expired-tag">Sudah berakhir</span>');
+    const extra = (eventDays(a.eventDate) !== null ? " · 📅 " + escapeHtml(formatEventDate(a.eventDate, true)) : "") + (a.pinned ? " · 📌 Disematkan" : "") + ((a.links && a.links.length) ? " · " + a.links.length + " link" : "");
     row.innerHTML = `
       <span class="ann-badge" style="--ann-color:${t.color}; --ann-bg:${t.bg};">${t.label}</span>
-      <span class="meta"><span class="lb">${escapeHtml(a.title || "")}</span><span class="url">${escapeHtml(formatAnnDate(a.date))}${endTxt}</span></span>
+      <span class="meta"><span class="lb">${escapeHtml(a.title || "")}</span><span class="url">${escapeHtml(formatAnnDate(a.date))}${extra}${endTxt}</span></span>
       <div class="existing-actions">
         <button class="btn-icon edit" aria-label="Edit"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
         <button class="btn-icon del" aria-label="Hapus"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
@@ -1688,6 +1800,10 @@ function startEditAnn(id){
   $("annTitle").value = a.title || "";
   $("annContent").value = a.content || "";
   $("annEnd").value = a.end ? toLocalInput(a.end) : "";
+  $("annPinned").checked = !!a.pinned;
+  $("annEvent").value = a.eventDate || "";
+  annLinkRows = (Array.isArray(a.links) ? a.links : []).map(l=>({ label: l.label || "", url: l.url || "" }));
+  renderAnnLinkRows();
   $("annErr").style.display = "none";
   $("annSectionTitle").innerHTML = "5. Edit Pengumuman — <span style=\"color:var(--primary);\">" + escapeHtml(a.title || "") + "</span>";
   $("saveAnnBtn").textContent = "✓ Perbarui Pengumuman";
@@ -1698,6 +1814,7 @@ function startEditAnn(id){
 function cancelEditAnn(){
   editingAnnId = null;
   $("annTitle").value = ""; $("annContent").value = ""; $("annEnd").value = "";
+  $("annPinned").checked = false; $("annEvent").value = ""; annLinkRows = []; renderAnnLinkRows();
   $("annErr").style.display = "none";
   setAnnType("info");
   $("annSectionTitle").innerHTML = '5. Pengumuman - <span style="color:var(--primary);" id="annYearLabel">' + escapeHtml((getEditingYear() || {}).label || "-") + '</span>';
@@ -1705,7 +1822,9 @@ function cancelEditAnn(){
   $("cancelAnnBtn").style.display = "none";
 }
 $("cancelAnnBtn").onclick = cancelEditAnn;
+$("linkSearch").addEventListener("input", render);
 $("clearAnnEndBtn").onclick = ()=>{ $("annEnd").value = ""; };
+$("clearAnnEventBtn").onclick = ()=>{ $("annEvent").value = ""; };
 // Sembunyikan otomatis pengumuman yang sudah berakhir saat halaman dibiarkan terbuka
 setInterval(()=>{ try{ renderAnnouncements(); }catch(e){} }, 60000);
 
@@ -1716,17 +1835,22 @@ $("saveAnnBtn").onclick = ()=>{
   const end = endVal ? new Date(endVal) : null;
   if(!title || !content){ $("annErr").textContent = "Judul dan isi pengumuman wajib diisi."; $("annErr").style.display = "block"; return; }
   if(end && (isNaN(end) || end.getTime() <= Date.now())){ $("annErr").textContent = "Waktu berakhir harus di masa depan."; $("annErr").style.display = "block"; return; }
+  const rawRows = annLinkRows.map(r=>({ label: (r.label || "").trim(), url: (r.url || "").trim() })).filter(r=>r.label || r.url);
+  if(rawRows.some(r=>!r.url)){ $("annErr").textContent = "Setiap tombol link wajib punya URL."; $("annErr").style.display = "block"; return; }
+  const linksArr = rawRows.map(r=>({ label: r.label || "Buka Link", url: /^https?:\/\//i.test(r.url) ? r.url : "https://" + r.url }));
+  const pinned = $("annPinned").checked;
+  const eventDate = $("annEvent").value || null;
   $("annErr").style.display = "none";
   const endISO = end ? end.toISOString() : null;
   const year = getEditingYear();
   const list = getAnnList(year);
   const existing = editingAnnId ? list.find(x=>x.id === editingAnnId) : null;
   if(existing){
-    existing.title = title; existing.content = content; existing.type = annType; existing.end = endISO;
+    existing.title = title; existing.content = content; existing.type = annType; existing.end = endISO; existing.pinned = pinned; existing.eventDate = eventDate; existing.links = linksArr;
     cancelEditAnn();
     saveConfig("Pengumuman berhasil diperbarui!");
   } else {
-    list.push({ id: uid(), type: annType, title, content, end: endISO, date: new Date().toISOString() });
+    list.push({ id: uid(), type: annType, title, content, end: endISO, pinned, eventDate, links: linksArr, date: new Date().toISOString() });
     cancelEditAnn();
     saveConfig("Pengumuman berhasil diterbitkan!", "📢");
   }
