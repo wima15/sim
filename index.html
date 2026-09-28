@@ -422,6 +422,7 @@
 
   /* Jadwal Pelajaran */
   .sc-tabs{display:flex;gap:8px;margin-bottom:18px}
+  .sc-two{grid-template-columns:repeat(2,minmax(0,1fr))!important;align-items:start}@media(max-width:820px){.sc-two{grid-template-columns:1fr!important}}
   .sc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:12px}
   .sc-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden}
   .sc-card.today{border-color:#F59E0B;box-shadow:0 0 0 2px #F59E0B}
@@ -685,7 +686,7 @@
 </div>
 
 <div class="overlay" id="schedOverlay">
-  <div class="sheet" style="background:var(--surface);max-width:980px;">
+  <div class="sheet" style="background:var(--surface);max-width:min(1500px,96vw);width:96vw;">
     <div class="top-row"><h2 id="scTitle">Jadwal Pelajaran</h2><button class="closeX" id="scClose">✕</button></div>
     <div id="scBody"></div>
   </div>
@@ -1974,6 +1975,9 @@ async function init(){
 // ===== Jadwal Pelajaran =====
 const SC_HARI=['MINGGU','SENIN','SELASA','RABU','KAMIS','JUMAT','SABTU'];
 const SC_SAMPLE={"title":"JADWAL PROSES BELAJAR MENGAJAR SEMESTER GASAL TAHUN AJARAN 2026/ 2027","subtitle":"(Berlaku Mulai 20 Juli 2026)","classes":["X ANM","X TO1","X TO2","XI ANM","XI TO1","XI TO2"],"days":[{"hari":"SENIN","rows":[{"waktu":"07.15 - 07.45","jam":"1","cells":["I3","L1","E4","J15","B16","H14"]},{"waktu":"07.45 - 08.15","jam":"2","cells":["I3","L1","E4","J15","B16","H14"]},{"waktu":"08.15 - 08.45","jam":"3","cells":["C8","L1","E4","J15","B16","H14"]},{"waktu":"08.45 - 09.15","jam":"4","cells":["C8","I3","K13","J15","B16","E4"]},{"waktu":"09.15 - 09.30","jam":"Istirahat","cells":["","","","","",""]},{"waktu":"09.30 - 10.00","jam":"5","cells":["L1","I3","K13","J15","B16","E4"]},{"waktu":"10.00 - 10.30","jam":"6","cells":["E4","H11","K13","J15","B16","C8"]},{"waktu":"10.30 - 11.00","jam":"7","cells":["E4","H11","K13","J15","I7","C8"]},{"waktu":"11.00 - 11.30","jam":"8","cells":["E4","H11","K13","J15","I7","C8"]}]},{"hari":"SELASA","rows":[{"waktu":"07.15 - 07.45","jam":"1","cells":["N9","H11","I3","A17","B16","F2"]},{"waktu":"07.45 - 08.15","jam":"2","cells":["N9","H11","I3","A17","B16","F2"]},{"waktu":"08.15 - 08.45","jam":"3","cells":["I3","H11","A10","C8","B16","N9"]},{"waktu":"08.45 - 09.15","jam":"4","cells":["I3","E4","A10","C8","B16","N9"]},{"waktu":"09.15 - 09.30","jam":"Istirahat","cells":["","","","","",""]},{"waktu":"09.30 - 10.00","jam":"5","cells":["F2","E4","A10","C8","B16","H14"]},{"waktu":"10.00 - 10.30","jam":"6","cells":["F2","E4","A10","L1","B16","H14"]},{"waktu":"10.30 - 11.00","jam":"7","cells":["H11","F5","N9","L1","B16","I7"]},{"waktu":"11.00 - 11.30","jam":"8","cells":["H11","F5","N9","L1","B16","I7"]}]},{"hari":"RABU","rows":[{"waktu":"07.15 - 07.45","jam":"1","cells":["I7","C8","H11","J15","L1","D16"]},{"waktu":"07.45 - 08.15","jam":"2","cells":["I7","C8","H11","J15","L1","D16"]},{"waktu":"08.15 - 08.45","jam":"3","cells":["A10","K13","H11","J15","L1","D16"]},{"waktu":"08.45 - 09.15","jam":"4","cells":["A10","K13","I7","J15","N9","D16"]},{"waktu":"09.15 - 09.30","jam":"Istirahat","cells":["","","","","",""]},{"waktu":"09.30 - 10.00","jam":"5","cells":["A10","K13","I7","J15","N9","D16"]},{"waktu":"10.00 - 10.30","jam":"6","cells":["A10","K13","L1","J15","H14","I3"]},{"waktu":"10.30 - 11.00","jam":"7","cells":["F5","K13","C8","J15","H14","I3"]},{"waktu":"11.00 - 11.30","jam":"8","cells":["F5","K13","C8","J15","H14","I3"]}]},{"hari":"KAMIS","rows":[{"waktu":"07.15 - 07.45","jam":"1","cells":["L1","I7","N9","E4","F2","K18"]},{"waktu":"07.45 - 08.15","jam":"2","cells":["L1","I7","N9","E4","F2","K18"]},{"waktu":"08.15 - 08.45","jam":"3","cells":["M12","N9","H11","I3","E4","K18"]},{"waktu":"08.45 - 09.15","jam":"4","cells":["M12","N9","H11","I3","E4","K18"]},{"waktu":"09.15 - 09.30","jam":"Istirahat","cells":["","","","","",""]},{"waktu":"09.30 - 10.00","jam":"5","cells":["M12","K13","H11","I3","N9","F5"]},{"waktu":"10.00 - 10.30","jam":"6","cells":["M12","K13","F5","H14","N9","D16"]},{"waktu":"10.30 - 11.00","jam":"7","cells":["G6","K13","I3","H14","F5","D16"]},{"waktu":"11.00 - 11.30","jam":"8","cells":["G6","K13","I3","H14","F5","D16"]}]},{"hari":"JUMAT","rows":[{"waktu":"07.15 - 07.45","jam":"1","cells":["C8","I3","K13","A17","H14","F5"]},{"waktu":"07.45 - 08.15","jam":"2","cells":["C8","I3","K13","A17","H14","N9"]},{"waktu":"08.15 - 08.45","jam":"3","cells":["M12","F2","K13","H14","I3","N9"]},{"waktu":"08.45 - 09.15","jam":"4","cells":["M12","F2","G6","H14","I3","D16"]},{"waktu":"09.15 - 09.30","jam":"Istirahat","cells":["","","","","",""]},{"waktu":"09.30 - 10.00","jam":"5","cells":["H11","A10","G6","N9","I3","D16"]},{"waktu":"10.00 - 10.30","jam":"6","cells":["H11","A10","F5","N9","C8","D16"]},{"waktu":"10.30 - 11.00","jam":"7","cells":["H11","A10","F2","I7","C8","D16"]},{"waktu":"11.00 - 11.30","jam":"8","cells":["H11","A10","F2","I7","C8","D16"]}]},{"hari":"SABTU","rows":[{"waktu":"07.15 - 07.45","jam":"1","cells":["M12","C8","L1","N9","K18","D16"]},{"waktu":"07.45 - 08.15","jam":"2","cells":["M12","C8","L1","N9","K18","D16"]},{"waktu":"08.15 - 08.45","jam":"3","cells":["M12","N9","C8","F2","K18","D16"]},{"waktu":"08.45 - 09.00","jam":"Istirahat","cells":["","","","","",""]},{"waktu":"09.00 - 09.30","jam":"4","cells":["M12","N9","C8","F2","K18","L1"]},{"waktu":"09.30 - 10.00","jam":"5","cells":["N9","G6","K13","F5","B16","L1"]},{"waktu":"10.00 - 10.30","jam":"6","cells":["N9","G6","K13","F5","B16","L1"]}]}],"guru":{"A":"Alinur Rohman Jagor, S.Kom","B":"Agung Purwanto, S.Pd.","C":"Adi Amin Gunawan, S.Pd.","D":"Agung Setiawan, S.Pd.","E":"Bahrun, S.Pd.","F":"Eko Budi P., S.H.","G":"Febriana Azizah, S.Pd.","H":"Maulinda Imansari, S.Pd.","I":"Ratna Uswatun Khasanah, S.Pd.","J":"Risky Utama Riyadi, S.Kom.","K":"Taat Susilo Wibowo, S.Pd.","L":"Yeni Astuti, S.Pd.","M":"Achmad Sidiq A.","N":"Khairul Umam, S.Pd."},"mapel":{"1":"Pendidikan Agama dan Budi Pekerti","2":"Pendidikan Pancasila","3":"Bahasa Indonesia","4":"Pendidikan Jasmani, Olahraga, dan Kesehatan","5":"Sejarah","6":"Seni Rupa","7":"Bahasa Jawa","8":"Matematika","9":"Bahasa Inggris","10":"Informatika","11":"Projek Ilmu Pengetahuan Alam dan Sosial","12":"Dasar-dasar Animasi","13":"Dasar-dasar Otomotif","14":"Kreatif, Inovatif dan Kewirausahaan","15":"Animasi","16":"Teknik Sepeda Motor","17":"Desain Komunikasi Visual (PILIHAN)","18":"Teknik Pengelasan (PILIHAN)"}};
+(function(){const nm=["Ruang 1","Ruang 2","Ruang 3","Ruang 4","Ruang 5","Ruang 6"],cl=["#FFE699","#BDD7EE","#C6E0B4","#F8CBAD","#D9C3F0","#FFC7CE"];
+  SC_SAMPLE.roomList={};nm.forEach((n,k)=>SC_SAMPLE.roomList[n]=cl[k]);
+  SC_SAMPLE.days.forEach(d=>d.rows.forEach(r=>{r.rooms=r.cells.map((c,k)=>c?nm[k%6]:"");}));})();
 let scPend=null, scIdx=null, scIcon="svg:calendar", scMsg="";
 const scSt={mode:"kelas",sel:"0",day:"ALL",item:null};
 const scDec=c=>{const m=/^([A-Za-z]+)\s*(\d+)$/.exec(c||"");return m?{g:m[1].toUpperCase(),m:m[2]}:null};
@@ -1990,6 +1994,15 @@ function scArgb(c){
   if(!hex||!/^[0-9a-f]{6}$/i.test(hex))return null;
   if(c.tint){const t=c.tint;hex=[0,2,4].map(i=>{const v=parseInt(hex.substr(i,2),16),o=t>0?v+(255-v)*t:v*(1+t);return Math.max(0,Math.min(255,Math.round(o))).toString(16).padStart(2,"0");}).join("");}
   return "#"+hex.toUpperCase();
+}
+function scColorName(hex){
+  const c=scRGB(hex);if(!c)return "";const [r,g,b]=c.map(v=>v/255),mx=Math.max(r,g,b),mn=Math.min(r,g,b),l=(mx+mn)/2,d=mx-mn;
+  let h=0;if(d){h=mx===r?((g-b)/d)%6:mx===g?(b-r)/d+2:(r-g)/d+4;h=(h*60+360)%360;}
+  const sat=d===0?0:d/(1-Math.abs(2*l-1));
+  if(sat<.15)return l>.9?"Putih":l<.2?"Hitam":"Abu-abu";
+  let n=h<15||h>=345?"Merah":h<40?"Oranye":h<70?"Kuning":h<160?"Hijau":h<200?"Tosca":h<255?"Biru":h<290?"Ungu":"Pink";
+  if(n==="Merah"&&l>.8)n="Pink";else if(l>.82)n+=" muda";else if(l<.35)n+=" tua";
+  return n;
 }
 // daftar ruang {nama: "#RRGGBB"}; jadwal lama (ruang per kelas) diubah otomatis
 function scRoomList(D){
@@ -2030,10 +2043,15 @@ function scParse(a,F){
     if(U(r,c)==="NAMA GURU"){let k=c+1;while(k<a[r].length&&U(r,k)!=="KODE")k++;
       for(let i=r+1;T(i,c);i++)D.guru[T(i,k).toUpperCase()]=T(i,c);}
     if(U(r,c)==="MATA PELAJARAN"){for(let i=r+1;T(i,c);i++)D.mapel[T(i,c-1)]=T(i,c);}
-    if(U(r,c)==="RUANG"&&c>0&&U(r,c-1)==="WARNA"){for(let i=r+1;T(i,c);i++){const hx=F&&(F(i,c-1)||F(i,c));if(hx)D.roomList[T(i,c)]=hx;}}
+    if(U(r,c)==="RUANG"&&U(r,c-1)!=="KELAS"){for(let i=r+1;T(i,c);i++){const hx=F&&(F(i,c-1)||F(i,c)||F(i,c+1));if(hx)D.roomList[T(i,c)]=hx;}}
     if(U(r,c)==="RUANG"&&c>0&&U(r,c-1)==="KELAS"){for(let i=r+1;T(i,c-1);i++)D.rooms[T(i,c-1)]=T(i,c);}
   }
   D.days.sort((x,y)=>SC_HARI.indexOf(x.hari)-SC_HARI.indexOf(y.hari));
+  if(F&&!Object.keys(D.roomList).length&&!Object.keys(D.rooms).length){ // tabel RUANG & WARNA tidak ada: kenali ruang dari warna kotak
+    const cl=[];D.days.forEach(d=>d.rows.forEach(r=>r.cells.forEach((v,k)=>{const hx=v&&r.fl&&r.fl[k],q=scRGB(hx);
+      if(!q||q.every(x=>x>=240))return;if(!cl.some(o=>{const p=scRGB(o);return Math.hypot(p[0]-q[0],p[1]-q[1],p[2]-q[2])<=30;}))cl.push(hx);})));
+    cl.forEach(hx=>{let n="Ruang "+scColorName(hx),i=2;while(D.roomList[n])n="Ruang "+scColorName(hx)+" "+i++;D.roomList[n]=hx;});
+    if(cl.length)D.autoRooms=true;}
   if(F&&Object.keys(D.roomList).length)scAssignRooms(D);else D.days.forEach(d=>d.rows.forEach(r=>delete r.fl));
   return D;
 }
@@ -2383,6 +2401,12 @@ function scPdfAll(doc,S,cap){
   if(S.subtitle){doc.setFont("helvetica","italic").setFontSize(9.5);doc.text(String(S.subtitle),pw/2,y,{align:"center"});y+=5;}
   doc.setFont("helvetica","bold").setFontSize(11).setTextColor(79,70,229);
   doc.text("Semua Kelas  |  "+(scSt.day==="ALL"?"Semua hari":"Hari "+cap(scSt.day))+"  |  Kode = huruf guru + angka mapel"+(hasR?"  |  Warna kotak = ruang":""),pw/2,y+2,{align:"center"});y+=8;
+  if(hasR){doc.setFont("helvetica","bold").setFontSize(9).setTextColor(30,41,59);doc.text("Keterangan ruang:",10,y+3);
+    let x=42;doc.setFont("helvetica","normal").setFontSize(8.5);
+    rl.forEach(([n,c])=>{const lb=n+": "+scColorName(c).toLowerCase(),w=doc.getTextWidth(lb)+10;if(x+w>pw-10){x=10;y+=6;}
+      const q=scRGB(c)||[255,255,255];doc.setFillColor(q[0],q[1],q[2]);doc.setDrawColor(148,163,184);doc.rect(x,y,5,4,"FD");
+      doc.setTextColor(30,41,59);doc.text(lb,x+7,y+3.2);x+=w+4;});
+    y+=9;}
   days.forEach(d=>{
     const body=d.rows.map(r=>scIsN(r.jam)?[r.jam,r.waktu,...S.classes.map((_,i)=>{const v=r.cells[i]||"",rn=v?scRoomOf(S,r,i):"",c=rn&&RL[rn]?scRGB(RL[rn]):null;return c?{content:v,styles:{fillColor:c}}:v;})]
       :[{content:`${r.jam}  (${r.waktu})`,colSpan:nc+2,styles:{halign:"center",fontStyle:"italic",fillColor:[254,243,199],textColor:[146,64,14]}}]);
@@ -2398,10 +2422,9 @@ function scPdfAll(doc,S,cap){
   });
   const gk=Object.keys(S.guru).sort(),mk=Object.keys(S.mapel).sort((a,b)=>a-b);
   const tabs=[[["Kode Guru","Nama Guru"],gk.map(k=>[k,S.guru[k]]),18],[["Kode Mapel","Mata Pelajaran"],mk.map(k=>[k,S.mapel[k]]),20]];
-  if(hasR)tabs.push([["Warna","Ruang"],rl.map(([n])=>["",n]),16,rl.map(([,c])=>scRGB(c))]);
-  const k=tabs.length,tw=(pw-20-4*(k-1))/k,need=16+Math.max(...tabs.map(t=>t[1].length))*5.4;
+    const k=tabs.length,tw=(pw-20-4*(k-1))/k,need=16+Math.max(...tabs.map(t=>t[1].length))*5.4;
   if(y+need>ph-12){doc.addPage();y=12;}
-  doc.setFont("helvetica","bold").setFontSize(10.5).setTextColor(30,41,59);doc.text("Keterangan Kode & Ruang",10,y+3);y+=6;
+  doc.setFont("helvetica","bold").setFontSize(10.5).setTextColor(30,41,59);doc.text("Keterangan Kode",10,y+3);y+=6;
   tabs.forEach((t,i)=>{const x=10+i*(tw+4);
     doc.autoTable({startY:y,margin:{left:x,right:pw-x-tw,bottom:12},tableWidth:tw,theme:"grid",head:[t[0]],body:t[1],
       styles:{fontSize:8,cellPadding:1.2,lineColor:[203,213,225],lineWidth:.15,textColor:[30,41,59]},
@@ -2465,11 +2488,11 @@ function scPdf(){
   doc.save(`JADWAL_${kelas?"KELAS":"GURU"}_${safe(kelas?who:(S.guru[scSt.sel]||scSt.sel))}${scSt.day==="ALL"?"":"_"+scSt.day}.pdf`);
   showToast("PDF diunduh.","✅");
 }
-const SC_MXCSS=".sc-mx{border-collapse:collapse;width:100%;font-size:12px}.sc-mx th,.sc-mx td{border:1px solid var(--border);padding:5px 6px;text-align:center;white-space:nowrap}.sc-mx th{background:var(--primary);color:#fff}.sc-mx tr.br td{background:rgba(245,158,11,.15);font-style:italic}.sc-mx td:first-child{font-weight:700}.sc-cr{display:block;font-size:9.5px;font-weight:500;opacity:.7}.sc-rm{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--muted);padding-left:12px;margin-top:2px}.sc-rm i{width:10px;height:10px;border-radius:50%;display:inline-block;border:1px solid rgba(0,0,0,.2)}.sc-lg{display:flex;flex-wrap:wrap;gap:4px 14px;margin:6px 0 12px}.sc-lg .sc-rm{padding-left:0;font-size:12px}";
+const SC_MXCSS=".sc-mx{border-collapse:collapse;width:100%;font-size:12px}.sc-mx th,.sc-mx td{border:1px solid var(--border);padding:5px 6px;text-align:center;white-space:nowrap}.sc-mx th{background:var(--primary);color:#fff}.sc-mx tr.br td{background:rgba(245,158,11,.15);font-style:italic}.sc-mx td:first-child{font-weight:700}.sc-two .sc-mx{font-size:11px}.sc-two .sc-mx th,.sc-two .sc-mx td{padding:4px 3px}.sc-cr{display:block;font-size:9.5px;font-weight:500;opacity:.7}.sc-rm{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--muted);padding-left:12px;margin-top:2px}.sc-rm i{width:10px;height:10px;border-radius:50%;display:inline-block;border:1px solid rgba(0,0,0,.2)}.sc-lg{display:flex;flex-wrap:wrap;gap:4px 16px;margin:6px 0 12px;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:var(--surface)}.sc-lg .sc-rm{padding-left:0;font-size:12.5px;color:var(--ink)}.sc-lg .sc-rm i{width:14px;height:14px;border-radius:4px}";
 function scCardAll(d){
   const S=scSt.item.schedule,nc=S.classes.length,RL=scRoomList(S);
   const rows=d.rows.map(r=>scIsN(r.jam)?`<tr><td>${scE(r.jam)}</td><td>${scE(r.waktu)}</td>${S.classes.map((_,i)=>{const v=r.cells[i]||"",rn=v?scRoomOf(S,r,i):"",c=rn&&RL[rn];
-      return c?`<td style="background:${c};color:#1E293B" title="${scE(rn)}">${scE(v)}<small class="sc-cr">${scE(rn)}</small></td>`:`<td>${scE(v)}</td>`;}).join("")}</tr>`
+      return c?`<td style="background:${c};color:#1E293B" title="${scE(rn)}">${scE(v)}</td>`:`<td>${scE(v)}</td>`;}).join("")}</tr>`
     :`<tr class="br"><td colspan="${nc+2}">${scE(r.jam)} (${scE(r.waktu)})</td></tr>`).join("");
   return{n:1,html:`<section class="sc-card"><h3>${scE(d.hari)}</h3><div style="overflow-x:auto"><table class="sc-mx"><tr><th>Jam</th><th>Waktu</th>${S.classes.map(c=>`<th>${scE(c)}</th>`).join("")}</tr>${rows}</table></div></section>`};
 }
@@ -2480,19 +2503,19 @@ function scRender(){
   const cards=S.days.filter(d=>scSt.day==="ALL"||d.hari===scSt.day).map(d=>all?scCardAll(d):scCard(d));
   const tot=cards.reduce((x,c)=>x+c.n,0);
   const cap=w=>w.charAt(0)+w.slice(1).toLowerCase();
-  const legend=all&&Object.keys(RL).length?`<div class="sc-lg">${Object.entries(RL).map(([n,c])=>`<span class="sc-rm"><i style="background:${c}"></i>${scE(n)}</span>`).join("")}</div>`:"";
+  const legend=Object.keys(RL).length?`<div class="sc-lg"><b style="font-size:12px;width:100%">Keterangan ruang (warna):</b>${Object.entries(RL).map(([n,c])=>`<span class="sc-rm"><i style="background:${c}"></i><b>${scE(n)}</b>: ${scE(scColorName(c).toLowerCase())}</span>`).join("")}</div>`:'<p class="sc-note">Keterangan ruang belum ada. Warnai kotak jadwal di Excel sesuai tabel RUANG &amp; WARNA, lalu unggah ulang dan terbitkan.</p>';
   $("scBody").innerHTML=`<style>${SC_MXCSS}</style><p class="sc-note">${escapeHtml(S.subtitle||"")}</p>
+  ${legend}
   <div class="sc-bar"><button class="sc-chip ${scSt.mode==="kelas"?"on":""}" data-m="kelas">Per Kelas</button><button class="sc-chip ${scSt.mode==="guru"?"on":""}" data-m="guru">Per Guru</button><select id="scSel">${opts.join("")}</select><button class="sc-chip" id="scPdf" type="button">⬇ Unduh PDF</button></div>
   <div class="sc-bar">${["ALL",...S.days.map(d=>d.hari)].map(h=>`<button class="sc-chip ${scSt.day===h?"on":""}" data-d="${h}">${h==="ALL"?"Semua hari":cap(h)}</button>`).join("")}</div>
   ${scSt.mode==="guru"?`<p class="sc-note">Total mengajar: <b>${tot} jam</b> per minggu (1 jam = 30 menit)</p>`:""}
-  ${legend}
-  <div class="sc-grid"${all?' style="grid-template-columns:1fr"':""}>${cards.map(c=>c.html).join("")||'<p class="sc-note">Tidak ada jadwal.</p>'}</div>`;
+  <div class="sc-grid${all?" sc-two":""}">${cards.map(c=>c.html).join("")||'<p class="sc-note">Tidak ada jadwal.</p>'}</div>`;
   $("scPdf").onclick=scPdf;const sel=$("scSel");sel.value=scSt.sel;sel.onchange=()=>{scSt.sel=sel.value;scRender();};
-  $("scBody").querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>{scSt.mode=b.dataset.m;scSt.sel=scSt.mode==="kelas"?"0":gk[0];scRender();});
+  $("scBody").querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>{scSt.mode=b.dataset.m;scSt.sel=scSt.mode==="kelas"?"ALL":gk[0];scRender();});
   $("scBody").querySelectorAll("[data-d]").forEach(b=>b.onclick=()=>{scSt.day=b.dataset.d;scRender();});
 }
 function openSchedule(item){
-  scSt.item=item;scSt.mode="kelas";scSt.sel="0";scSt.day="ALL";
+  scSt.item=item;scSt.mode="kelas";scSt.sel="ALL";scSt.day="ALL";
   $("scTitle").textContent=item.label||"Jadwal Pelajaran";
   scRender();openModal("schedOverlay");
 }
@@ -2527,6 +2550,7 @@ function scSummary(D){
   const nr=Object.keys(scRoomList(D)).length,st=D.roomStat||{};
   return `<span class="sc-ok">✓ Terbaca: ${D.classes.length} kelas, ${D.days.length} hari, ${Object.keys(D.guru).length} guru, ${Object.keys(D.mapel).length} mapel${nr?", "+nr+" ruang (dari warna kotak)":""}.</span>`+
     (bad.size?`<br><span class="sc-warn">⚠ Kode tidak dikenali: ${[...bad].slice(0,15).map(escapeHtml).join(", ")} (tampil sebagai "—").</span>`:"")+
+    (D.autoRooms?`<br><span class="sc-warn">⚠ Daftar RUANG &amp; WARNA tidak ditemukan, jadi ruang dinamai sesuai warnanya. Isi daftar itu (kotak warna + nama ruang) bila ingin nama ruang asli.</span>`:"")+
     (st.none?`<br><span class="sc-warn">⚠ ${st.none} kotak jadwal belum diberi warna ruang (ruang tidak tampil untuk kotak itu).</span>`:"")+
     (st.miss?`<br><span class="sc-warn">⚠ ${st.miss} kotak berwarna yang tidak cocok dengan daftar RUANG &amp; WARNA. Samakan warnanya (pakai Format Painter).</span>`:"");
 }
