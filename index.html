@@ -2547,31 +2547,12 @@ function scFindById(id){
   return null;
 }
 const SC_ONLY=document.documentElement.classList.contains("sc-only");
-// Parameter opsional pada link jadwal: &mode=kelas|guru &sel=<kelas/kode guru> &day=<HARI> &pdf=1 (unduh PDF otomatis).
-// Dipakai aplikasi Android untuk menyerahkan unduhan PDF ke browser HP.
-function scApplyUrlView(q){
-  try{
-    if(!q.has("mode")&&!q.has("day")&&q.get("pdf")!=="1")return;
-    const S=scSt.item.schedule,m=q.get("mode"),sel=q.get("sel"),day=q.get("day");
-    if(m==="kelas"||m==="guru"){
-      scSt.mode=m;
-      if(m==="kelas")scSt.sel=(sel==="ALL"||(/^\d+$/.test(sel||"")&&+sel<S.classes.length))?sel:"ALL";
-      else scSt.sel=(sel&&Object.prototype.hasOwnProperty.call(S.guru,sel))?sel:Object.keys(S.guru).sort()[0];
-    }
-    if(day&&(day==="ALL"||S.days.some(d=>d.hari===day)))scSt.day=day;
-    scRender();
-    if(q.get("pdf")==="1"){
-      showToast("Menyiapkan PDF… bila tidak mulai, ketuk Unduh PDF.","⏳");
-      setTimeout(()=>{try{scPdf();}catch(e){console.warn(e);}},700);
-    }
-  }catch(e){console.warn("scApplyUrlView:",e);}
-}
 function scOpenFromUrl(){
   const q=new URLSearchParams(location.search);
   if(!q.has("jadwal"))return;
   const id=q.get("jadwal");let item=id?scFindById(id):null;
   if(!item&&!id){const y=getViewerYear();item=((y&&y.links)||[]).find(l=>l.type==="schedule")||null;}
-  if(item){openSchedule(item);if(SC_ONLY){document.title=(item.label||"Jadwal Pelajaran")+" - SMK Widya Mandala Tambak";}scApplyUrlView(q);}
+  if(item){openSchedule(item);if(SC_ONLY){document.title=(item.label||"Jadwal Pelajaran")+" - SMK Widya Mandala Tambak";}}
   else if(SC_ONLY)$("scBody").innerHTML='<p class="sc-note" style="text-align:center;padding:48px 0">Jadwal tidak ditemukan. Minta link terbaru ke pihak sekolah.</p>';
   else showToast("Jadwal tidak ditemukan. Minta link terbaru ke sekolah.","⚠️");
 }
@@ -2666,7 +2647,5 @@ scInit();
 
 init();
 </script>
-<script src="notifications.js"></script>
-<script src="android-download.js"></script>
 </body>
 </html>
