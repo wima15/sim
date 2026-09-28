@@ -10,6 +10,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <style>
   :root {
     --bg: #F8FAFC; 
@@ -2286,6 +2288,59 @@ function scCard(d){
   if(scSt.mode==="guru"&&!n)return {n:0,html:""};
   return {n,html:`<section class="sc-card${today?" today":""}"><h3>${escapeHtml(d.hari)}${today?'<span class="sc-badge">Hari ini</span>':""}</h3>${html}</section>`};
 }
+// --- Unduh PDF sesuai filter yang sedang tampil (kelas/guru + hari) ---
+function scPdf(){
+  const lib=window.jspdf&&window.jspdf.jsPDF;
+  if(!lib){showToast("Pustaka PDF belum termuat. Periksa koneksi internet.","⚠️");return;}
+  const doc=new lib({unit:"mm",format:"a4"});
+  if(typeof doc.autoTable!=="function"){showToast("Pustaka tabel PDF belum termuat.","⚠️");return;}
+  const S=scSt.item.schedule,kelas=scSt.mode==="kelas",cap=w=>w.charAt(0)+w.slice(1).toLowerCase();
+  const who=kelas?(S.classes[+scSt.sel]||""):(scSt.sel+" - "+(S.guru[scSt.sel]||scSt.sel));
+  let total=0;const blocks=[];
+  S.days.filter(d=>scSt.day==="ALL"||d.hari===scSt.day).forEach(d=>{
+    const body=[];let n=0;
+    d.rows.forEach(r=>{
+      if(!/^\d+$/.test(r.jam)){
+        if(kelas)body.push([{content:`${r.jam}  (${r.waktu})`,colSpan:4,styles:{halign:"center",fontStyle:"italic",fillColor:[254,243,199],textColor:[146,64,14]}}]);
+        return;}
+      if(kelas){const x=scDec(r.cells[+scSt.sel]);n++;
+        body.push([r.jam,r.waktu,x?(S.mapel[x.m]||r.cells[+scSt.sel]):"-",x?(S.guru[x.g]||x.g):"-"]);
+      }else{
+        const ms=S.classes.map((c,i)=>({c,x:scDec(r.cells[i])})).filter(o=>o.x&&o.x.g===scSt.sel);
+        if(!ms.length)return;n++;total++;
+        body.push([r.jam,r.waktu,S.mapel[ms[0].x.m]||ms[0].x.m,ms.map(o=>o.c).join(", ")]);
+      }});
+    if(n)blocks.push({hari:d.hari,body});
+  });
+  if(!blocks.length){showToast("Tidak ada jadwal untuk diunduh.","⚠️");return;}
+  let y=14;
+  doc.setFont("helvetica","bold").setFontSize(13);
+  const tl=doc.splitTextToSize(String(S.title||scSt.item.label||"Jadwal Pelajaran"),180);
+  doc.text(tl,105,y,{align:"center"});y+=tl.length*5.5;
+  if(S.subtitle){doc.setFont("helvetica","italic").setFontSize(9.5);doc.text(String(S.subtitle),105,y,{align:"center"});y+=5;}
+  doc.setFont("helvetica","bold").setFontSize(11).setTextColor(79,70,229);
+  doc.text((kelas?"Kelas: ":"Guru: ")+who+"  |  "+(scSt.day==="ALL"?"Semua hari":"Hari "+cap(scSt.day)),105,y+2,{align:"center"});y+=7;
+  doc.setTextColor(30,41,59);
+  if(!kelas){doc.setFont("helvetica","normal").setFontSize(9.5);doc.text(`Total mengajar: ${total} jam per minggu (1 jam = 30 menit)`,105,y,{align:"center"});y+=5;}
+  y+=2;
+  blocks.forEach(b=>{
+    if(y>20&&y+16+b.body.length*7.6>281){doc.addPage();y=14;}
+    doc.autoTable({startY:y,margin:{left:14,right:14,bottom:16},theme:"grid",rowPageBreak:"avoid",
+      head:[[{content:b.hari,colSpan:4,styles:{halign:"left",fontSize:11}}],["Jam","Waktu","Mata Pelajaran",kelas?"Guru":"Kelas"]],body:b.body,
+      styles:{fontSize:9.5,cellPadding:2,lineColor:[203,213,225],lineWidth:.15,textColor:[30,41,59]},
+      headStyles:{fillColor:[224,231,255],textColor:[55,48,163],fontStyle:"bold"},
+      alternateRowStyles:{fillColor:[248,250,252]},
+      columnStyles:{0:{cellWidth:14,halign:"center",fontStyle:"bold"},1:{cellWidth:36,halign:"center"}},
+      didParseCell:h=>{if(h.section!=="head")return;if(h.row.index===0){h.cell.styles.fillColor=[79,70,229];h.cell.styles.textColor=[255,255,255];}else if(h.column.index<2)h.cell.styles.halign="center";}});
+    y=doc.lastAutoTable.finalY+6;
+  });
+  const pg=doc.getNumberOfPages(),tgl=new Date().toLocaleDateString("id-ID",{day:"numeric",month:"long",year:"numeric"});
+  for(let i=1;i<=pg;i++){doc.setPage(i);doc.setFont("helvetica","normal").setFontSize(8).setTextColor(100,116,139);
+    doc.text(`Dicetak ${tgl}  |  Hal. ${i}/${pg}`,105,290,{align:"center"});}
+  const safe=t=>String(t).replace(/[^\w]+/g,"_").replace(/^_|_$/g,"");
+  doc.save(`JADWAL_${kelas?"KELAS":"GURU"}_${safe(kelas?who:(S.guru[scSt.sel]||scSt.sel))}${scSt.day==="ALL"?"":"_"+scSt.day}.pdf`);
+  showToast("PDF diunduh.","✅");
+}
 function scRender(){
   const S=scSt.item.schedule,gk=Object.keys(S.guru).sort();
   const opts=scSt.mode==="kelas"?S.classes.map((c,i)=>`<option value="${i}">${escapeHtml(c)}</option>`):gk.map(k=>`<option value="${k}">${escapeHtml(k)} · ${escapeHtml(S.guru[k])}</option>`);
@@ -2293,11 +2348,11 @@ function scRender(){
   const tot=cards.reduce((x,c)=>x+c.n,0);
   const cap=w=>w.charAt(0)+w.slice(1).toLowerCase();
   $("scBody").innerHTML=`<p class="sc-note">${escapeHtml(S.subtitle||"")}</p>
-  <div class="sc-bar"><button class="sc-chip ${scSt.mode==="kelas"?"on":""}" data-m="kelas">Per Kelas</button><button class="sc-chip ${scSt.mode==="guru"?"on":""}" data-m="guru">Per Guru</button><select id="scSel">${opts.join("")}</select></div>
+  <div class="sc-bar"><button class="sc-chip ${scSt.mode==="kelas"?"on":""}" data-m="kelas">Per Kelas</button><button class="sc-chip ${scSt.mode==="guru"?"on":""}" data-m="guru">Per Guru</button><select id="scSel">${opts.join("")}</select><button class="sc-chip" id="scPdf" type="button">⬇ Unduh PDF</button></div>
   <div class="sc-bar">${["ALL",...S.days.map(d=>d.hari)].map(h=>`<button class="sc-chip ${scSt.day===h?"on":""}" data-d="${h}">${h==="ALL"?"Semua hari":cap(h)}</button>`).join("")}</div>
   ${scSt.mode==="guru"?`<p class="sc-note">Total mengajar: <b>${tot} jam</b> per minggu (1 jam = 30 menit)</p>`:""}
   <div class="sc-grid">${cards.map(c=>c.html).join("")||'<p class="sc-note">Tidak ada jadwal.</p>'}</div>`;
-  const sel=$("scSel");sel.value=scSt.sel;sel.onchange=()=>{scSt.sel=sel.value;scRender();};
+  $("scPdf").onclick=scPdf;const sel=$("scSel");sel.value=scSt.sel;sel.onchange=()=>{scSt.sel=sel.value;scRender();};
   $("scBody").querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>{scSt.mode=b.dataset.m;scSt.sel=scSt.mode==="kelas"?"0":gk[0];scRender();});
   $("scBody").querySelectorAll("[data-d]").forEach(b=>b.onclick=()=>{scSt.day=b.dataset.d;scRender();});
 }
