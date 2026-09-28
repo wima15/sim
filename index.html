@@ -718,16 +718,7 @@ let btnGroupRows = [{ label: "", url: "", icon: "svg:link" }];
 const LOCAL_STORAGE_KEY = "smk_widya_mandala_config_v1";
 
 // Default school menu links for SMK Widya Mandala Tambak
-const DEFAULT_LINKS_2025_2026 = [
-  { label: "E-Raport Digital", url: "https://erapor.smkwidyamandala.sch.id", icon: "svg:chart" },
-  { label: "CBT / Ujian Online", url: "https://cbt.smkwidyamandala.sch.id", icon: "svg:computer" },
-  { label: "Absensi Presensi", url: "https://absensi.smkwidyamandala.sch.id", icon: "svg:clipboard" },
-  { label: "PPDB Online", url: "https://ppdb.smkwidyamandala.sch.id", icon: "svg:shield" },
-  { label: "Website Utama", url: "https://smkwidyamandala.sch.id", icon: "svg:globe" },
-  { label: "Perpustakaan Digital", url: "https://perpus.smkwidyamandala.sch.id", icon: "svg:book" },
-  { label: "Info Keuangan & SPP", url: "https://spp.smkwidyamandala.sch.id", icon: "svg:wallet" },
-  { label: "Jadwal Pelajaran", url: "https://jadwal.smkwidyamandala.sch.id", icon: "svg:calendar" }
-];
+const DEFAULT_LINKS_2025_2026 = []; // tidak ada menu bawaan; semua menu berasal dari data sekolah
 
 function saveToLocalStorage(data){
   try {
@@ -1962,13 +1953,15 @@ async function init(){
   renderBtnLinkRows();
   cfg = normalizeCfg(loadFromLocalStorage());
   viewerYearId = readStoredYear();
-  renderYearSelect();
-  render();
+  const hadLocal = !!loadFromLocalStorage();
+  if(hadLocal){ renderYearSelect(); render(); }
+  else { $("grid").innerHTML = '<p style="text-align:center;color:var(--muted);padding:48px 0;font-weight:600">Memuat…</p>'; }
 
   await loadConfig();
   renderYearSelect();
   render();
   subscribeRealtime();
+  scOpenFromUrl();
 }
 
 
@@ -2523,13 +2516,31 @@ function scRender(){
   const legend=Object.keys(RL).length?`<div class="sc-lg"><b style="font-size:12px;width:100%">Keterangan ruang (warna):</b>${Object.entries(RL).map(([n,c])=>`<span class="sc-rm"><i style="background:${c}"></i><b>${scE(n)}</b>: ${scE(scColorName(c).toLowerCase())}</span>`).join("")}</div>`:'<p class="sc-note">Keterangan ruang belum ada. Warnai kotak jadwal di Excel sesuai tabel RUANG &amp; WARNA, lalu unggah ulang dan terbitkan.</p>';
   $("scBody").innerHTML=`<style>${SC_MXCSS}</style><p class="sc-note">${escapeHtml(S.subtitle||"")}</p>
   ${legend}
-  <div class="sc-bar"><button class="sc-chip ${scSt.mode==="kelas"?"on":""}" data-m="kelas">Per Kelas</button><button class="sc-chip ${scSt.mode==="guru"?"on":""}" data-m="guru">Per Guru</button><select id="scSel">${opts.join("")}</select><button class="sc-chip" id="scPdf" type="button">⬇ Unduh PDF</button></div>
+  <div class="sc-bar"><button class="sc-chip ${scSt.mode==="kelas"?"on":""}" data-m="kelas">Per Kelas</button><button class="sc-chip ${scSt.mode==="guru"?"on":""}" data-m="guru">Per Guru</button><select id="scSel">${opts.join("")}</select><button class="sc-chip" id="scPdf" type="button">⬇ Unduh PDF</button>${scSt.item.id?'<button class="sc-chip" id="scLink" type="button">🔗 Salin Link</button>':""}</div>
   <div class="sc-bar">${["ALL",...S.days.map(d=>d.hari)].map(h=>`<button class="sc-chip ${scSt.day===h?"on":""}" data-d="${h}">${h==="ALL"?"Semua hari":cap(h)}</button>`).join("")}</div>
   ${scSt.mode==="guru"?`<p class="sc-note">Total mengajar: <b>${tot} jam</b> per minggu (1 jam = 30 menit)</p>`:""}
   <div class="sc-grid${all?" sc-two":""}">${cards.map(c=>c.html).join("")||'<p class="sc-note">Tidak ada jadwal.</p>'}</div>`;
-  $("scPdf").onclick=scPdf;const sel=$("scSel");sel.value=scSt.sel;sel.onchange=()=>{scSt.sel=sel.value;scRender();};
+  $("scPdf").onclick=scPdf;if($("scLink"))$("scLink").onclick=()=>scCopyLink(scSt.item);const sel=$("scSel");sel.value=scSt.sel;sel.onchange=()=>{scSt.sel=sel.value;scRender();};
   $("scBody").querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>{scSt.mode=b.dataset.m;scSt.sel=scSt.mode==="kelas"?"ALL":gk[0];scRender();});
   $("scBody").querySelectorAll("[data-d]").forEach(b=>b.onclick=()=>{scSt.day=b.dataset.d;scRender();});
+}
+// --- link langsung ke jadwal: index.html?jadwal=<id> ---
+function scLinkFor(item){return location.href.split(/[?#]/)[0]+"?jadwal="+encodeURIComponent(item.id);}
+async function scCopyLink(item){
+  const url=scLinkFor(item);
+  try{await navigator.clipboard.writeText(url);showToast("Link jadwal disalin.","🔗");}
+  catch(e){window.prompt("Salin link jadwal ini:",url);}
+}
+function scFindById(id){
+  for(const y of cfg.years){for(const l of (y.links||[])){if(l.type==="schedule"&&l.id===id)return l;}}
+  return null;
+}
+function scOpenFromUrl(){
+  const q=new URLSearchParams(location.search);
+  if(!q.has("jadwal"))return;
+  const id=q.get("jadwal");let item=id?scFindById(id):null;
+  if(!item&&!id){const y=getViewerYear();item=((y&&y.links)||[]).find(l=>l.type==="schedule")||null;}
+  if(item)openSchedule(item);else showToast("Jadwal tidak ditemukan. Minta link terbaru ke sekolah.","⚠️");
 }
 function openSchedule(item){
   scSt.item=item;scSt.mode="kelas";scSt.sel="ALL";scSt.day="ALL";
@@ -2545,10 +2556,12 @@ function scReset(){scPend=null;scIdx=null;scMsg="";scIcon="svg:calendar";$("sc_l
 function scAdmin(){
   const y=getEditingYear();$("sc_year").textContent=y?y.label:"-";
   const ls=(y&&y.links)||[],box=$("sc_list");box.innerHTML="";
+  let idFix=false;ls.forEach(l=>{if(l.type==="schedule"&&!l.id){l.id="j"+uid().slice(1);idFix=true;}});if(idFix)saveConfig("Link jadwal dibuat.");
   ls.forEach((l,i)=>{if(l.type!=="schedule")return;
     const row=document.createElement("div");row.className="existing";
     row.innerHTML=`${iconBadgeHTML(l.icon,20)}<span class="meta"><span class="lb">${escapeHtml(l.label)}</span><span class="url">${l.schedule.classes.length} kelas · ${Object.keys(l.schedule.guru).length} guru · ${l.schedule.days.length} hari</span></span>
-    <div class="existing-actions"><button class="btn-icon edit" aria-label="Edit">✎</button><button class="btn-icon del" aria-label="Hapus">✕</button></div>`;
+    <div class="existing-actions"><button class="btn-icon lnk" aria-label="Salin link" title="Salin link untuk siswa">🔗</button><button class="btn-icon edit" aria-label="Edit">✎</button><button class="btn-icon del" aria-label="Hapus">✕</button></div>`;
+    row.querySelector(".lnk").onclick=()=>scCopyLink(l);
     row.querySelector(".edit").onclick=()=>editSchedule(i);
     row.querySelector(".del").onclick=()=>{ls.splice(i,1);saveConfig("Jadwal dihapus dari menu.");scReset();renderAdminList();render();renderPreview();scAdmin();};
     box.appendChild(row);});
@@ -2594,7 +2607,8 @@ async function scOnFile(e){
 function scPublish(){
   if(!scPend)return;
   const y=getEditingYear();y.links=y.links||[];
-  const item={type:"schedule",label:$("sc_label").value.trim()||"Jadwal Pelajaran",icon:scIcon||"svg:calendar",schedule:scPend};
+  const oldId=scIdx!==null&&y.links[scIdx]?y.links[scIdx].id:null;
+  const item={type:"schedule",id:oldId||("j"+uid().slice(1)),label:$("sc_label").value.trim()||"Jadwal Pelajaran",icon:scIcon||"svg:calendar",schedule:scPend};
   if(scIdx!==null&&y.links[scIdx])y.links[scIdx]=item;else y.links.push(item);
   saveConfig("Jadwal berhasil diterbitkan ke menu!");scReset();renderAdminList();render();renderPreview();scAdmin();
 }
