@@ -448,6 +448,22 @@
   .sc-msg{font-size:13px;margin:10px 0;font-weight:600;line-height:1.5}
   .sc-ok{color:#15803d}.sc-warn{color:#b45309}
   .sc-file{display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+
+  /* Kalender Akademik */
+  .kd-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+  .kd-m{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+  .kd-m h3{margin:0;padding:10px 14px;font-size:13.5px;background:rgba(99,102,241,.12);color:var(--ink)}
+  .kd-wk,.kd-days{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;padding:0 8px;text-align:center}
+  .kd-wk{padding-top:8px;font-size:10.5px;font-weight:800;color:var(--muted)}.kd-wk span:last-child{color:var(--danger)}
+  .kd-days{padding-bottom:8px;padding-top:2px}
+  .kd-d{position:relative;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:600;border-radius:50%;color:var(--ink)}
+  .kd-d.sun{color:var(--danger)}
+  .kd-d.ev{background:var(--c);color:#fff;font-weight:800;cursor:help}
+  .kd-d.ev2::after{content:"";position:absolute;top:1px;right:1px;width:7px;height:7px;border-radius:50%;background:var(--c2);border:1.5px solid var(--surface)}
+  .kd-ket{list-style:none;margin:0;padding:8px 14px 12px;border-top:1px solid var(--border);font-size:12px;line-height:1.45}
+  .kd-ket li{display:flex;gap:8px;align-items:flex-start;margin-bottom:5px}
+  .kd-ket i{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:4px}
+  .kd-ket b{white-space:nowrap}.kd-ket .none{color:var(--muted)}
 </style>
 <script>if(/[?&]jadwal(=|&|$)/.test(location.search))document.documentElement.classList.add("sc-only");</script>
 </head>
@@ -508,6 +524,7 @@
     <div class="type-toggle sc-tabs" id="adminTabs">
       <button type="button" class="type-toggle-btn sel" data-tab="portal">Portal &amp; Link</button>
       <button type="button" class="type-toggle-btn" data-tab="jadwal">Jadwal Pelajaran</button>
+      <button type="button" class="type-toggle-btn" data-tab="kaldik">Kaldik</button>
     </div>
     <div id="tabPortal">
     <button class="btn btn-ghost" id="previewBtn" style="margin-bottom:20px;">
@@ -663,6 +680,25 @@
         <button class="btn btn-ghost" id="sc_cancel" type="button" style="display:none;max-width:120px;">Batal</button>
       </div>
     </div>
+
+    <div id="tabKaldik" style="display:none;">
+      <div class="section-title" style="margin-top:0;">Kalender Akademik - <span id="kd_year" style="color:var(--primary);">-</span></div>
+      <p class="sc-note">Kaldik terbit sebagai menu ikon di portal untuk tahun ajaran yang sedang diedit.</p>
+      <div id="kd_list"></div>
+      <div class="section-title">Buat / Ganti Kaldik</div>
+      <p class="sc-note">1) Unduh format Excel, 2) isi kolom <b>NO, TAHUN, TANGGAL &amp; BULAN MULAI, TANGGAL &amp; BULAN AKHIR</b> (kosongkan bila hanya 1 hari) dan <b>KEGIATAN</b>, 3) unggah, 4) terbitkan.</p>
+      <div class="row" style="margin-bottom:10px;">
+        <button class="btn btn-ghost" id="kd_tpl" type="button">⬇ Unduh Format Excel</button>
+        <label class="btn btn-ghost sc-file">⬆ Unggah Excel<input type="file" id="kd_file" accept=".xlsx,.xls" hidden></label>
+      </div>
+      <div class="sc-msg" id="kd_msg"></div>
+      <div class="field"><label>Nama Menu</label><input id="kd_label" value="Kalender Akademik"></div>
+      <div class="field"><label>Ikon Menu</label><div id="kd_iconWrap"></div></div>
+      <div class="row">
+        <button class="btn btn-primary" id="kd_pub" type="button" style="flex:1;">Terbitkan ke Menu</button>
+        <button class="btn btn-ghost" id="kd_cancel" type="button" style="display:none;max-width:120px;">Batal</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -695,6 +731,13 @@
   <div class="sheet" style="background:var(--surface);max-width:min(1500px,96vw);width:96vw;">
     <div class="top-row"><h2 id="scTitle">Jadwal Pelajaran</h2><button class="closeX" id="scClose">✕</button></div>
     <div id="scBody"></div>
+  </div>
+</div>
+
+<div class="overlay" id="kdOverlay">
+  <div class="sheet" style="background:var(--surface);max-width:min(1200px,96vw);width:96vw;">
+    <div class="top-row"><h2 id="kdTitle">Kalender Akademik</h2><button class="closeX" id="kdClose">✕</button></div>
+    <div id="kdBody"></div>
   </div>
 </div>
 
@@ -1075,7 +1118,15 @@ function render(){
     if(l.icon && l.icon.indexOf("svg:") === 0) key = l.icon.slice(4);
     const theme = getIconTheme(key);
 
-    if(l.type === "schedule"){
+    if(l.type === "kaldik"){
+      const div = document.createElement("div");
+      div.className = "linkcard";
+      div.style.cursor = "pointer";
+      div.style.setProperty("--card-border", theme.border);
+      div.innerHTML = `${iconBadgeHTML(l.icon, 30)}<span class="lb">${escapeHtml(l.label)}</span>`;
+      div.onclick = ()=> openKaldik(l);
+      grid.appendChild(div);
+    } else if(l.type === "schedule"){
       const div = document.createElement("div");
       div.className = "linkcard";
       div.style.cursor = "pointer";
@@ -1514,13 +1565,13 @@ function renderAdminList(){
   links.forEach((l, i)=>{
     const row = document.createElement("div");
     row.className = "existing";
-    const isGroup = l.type === "group", isSched = l.type === "schedule";
+    const isGroup = l.type === "group", isSched = l.type === "schedule", isKd = l.type === "kaldik";
 
     row.innerHTML = `
       ${iconBadgeHTML(l.icon, 20)}
-      <span class="meta"><span class="lb">${escapeHtml(l.label)}</span><span class="url">${isSched ? (l.schedule.classes.length + " kelas · " + Object.keys(l.schedule.guru).length + " guru") : isGroup ? ((l.links || []).length + " link di dalam tombol ini") : escapeHtml(l.url)}</span></span>
+      <span class="meta"><span class="lb">${escapeHtml(l.label)}</span><span class="url">${isKd ? ((l.kaldik.events||[]).length + " kegiatan") : isSched ? (l.schedule.classes.length + " kelas · " + Object.keys(l.schedule.guru).length + " guru") : isGroup ? ((l.links || []).length + " link di dalam tombol ini") : escapeHtml(l.url)}</span></span>
       <div class="existing-actions">
-        ${isSched ? '<span class="type-badge">Jadwal</span>' : isGroup ? '<span class="type-badge">Tombol</span>' : ''}
+        ${isKd ? '<span class="type-badge">Kaldik</span>' : isSched ? '<span class="type-badge">Jadwal</span>' : isGroup ? '<span class="type-badge">Tombol</span>' : ''}
         <button class="btn-icon" data-dir="-1" ${i===0?"disabled":""} aria-label="Naik">▲</button>
         <button class="btn-icon" data-dir="1" ${i===links.length-1?"disabled":""} aria-label="Turun">▼</button>
         <button class="btn-icon edit" data-i="${i}" aria-label="Edit"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>
@@ -1530,11 +1581,11 @@ function renderAdminList(){
     row.querySelectorAll(".btn-icon[data-dir]").forEach(ab=>{
       ab.onclick = ()=> moveLink(i, parseInt(ab.dataset.dir,10));
     });
-    row.querySelector(".btn-icon.edit").onclick = ()=> isSched ? editSchedule(i) : isGroup ? startEditGroup(i) : startEditLink(i);
+    row.querySelector(".btn-icon.edit").onclick = ()=> isKd ? editKaldik(i) : isSched ? editSchedule(i) : isGroup ? startEditGroup(i) : startEditLink(i);
     row.querySelector(".btn-icon.del").onclick = ()=>{
       links.splice(i,1);
       if(editingLinkIndex === i) cancelEditLink();
-      saveConfig(isSched ? "Jadwal berhasil dihapus." : isGroup ? "Tombol berhasil dihapus." : "Link berhasil dihapus."); renderAdminList(); render(); renderPreview();
+      saveConfig(isKd ? "Kaldik berhasil dihapus." : isSched ? "Jadwal berhasil dihapus." : isGroup ? "Tombol berhasil dihapus." : "Link berhasil dihapus."); renderAdminList(); render(); renderPreview();
     };
     list.appendChild(row);
   });
@@ -2411,7 +2462,15 @@ function scPdfFoot(doc){
     doc.text(`Dicetak ${tgl}  |  Hal. ${i}/${pg}`,pw/2,ph-6,{align:"center"});}
 }
 // PDF semua kelas: matriks berisi KODE guru+mapel, kotak diwarnai sesuai ruang, lalu keterangan kode & warna ruang
-function scPdfAll(doc,S,cap){
+// Tata letak PDF semua kelas: dua hari berdampingan (Senin|Selasa, Rabu|Kamis, dst.) dengan jarak antar tabel.
+// A4 dipakai bila kolom kelas masih lega; bila kelas banyak otomatis A3 supaya tidak dempet;
+// bila tetap sempit, kembali ke satu hari per baris.
+function scAllLayout(nc,nd){
+  const GAP=8,FIX=31,MIN=14,cw=W=>((W-20-GAP)/2-FIX)/nc;
+  if(nd>1&&nc>0){if(cw(297)>=MIN)return{fmt:"a4",two:true};if(cw(420)>=MIN)return{fmt:"a3",two:true};}
+  return{fmt:"a4",two:false};
+}
+function scPdfAll(doc,S,cap,L,lib){
   const pw=doc.internal.pageSize.getWidth(),ph=doc.internal.pageSize.getHeight(),RL=scRoomList(S),rl=Object.entries(RL),nc=S.classes.length,hasR=rl.length>0;
   const days=S.days.filter(d=>scSt.day==="ALL"||d.hari===scSt.day);
   if(!days.length||!nc){showToast("Tidak ada jadwal untuk diunduh.","⚠️");return;}
@@ -2428,19 +2487,32 @@ function scPdfAll(doc,S,cap){
       const q=scRGB(c)||[255,255,255];doc.setFillColor(q[0],q[1],q[2]);doc.setDrawColor(148,163,184);doc.rect(x,y,5,4,"FD");
       doc.setTextColor(30,41,59);doc.text(lb,x+7,y+3.2);x+=w+4;});
     y+=9;}
-  days.forEach(d=>{
-    const body=d.rows.map(r=>scIsN(r.jam)?[r.jam,r.waktu,...S.classes.map((_,i)=>{const v=r.cells[i]||"",rn=v?scRoomOf(S,r,i):"",c=rn&&RL[rn]?scRGB(RL[rn]):null;return c?{content:v,styles:{fillColor:c,textColor:scInkRGB(RL[rn])}}:v;})]
-      :[{content:`${r.jam}  (${r.waktu})`,colSpan:nc+2,styles:{halign:"center",fontStyle:"italic",fillColor:[254,243,199],textColor:[146,64,14]}}]);
-    const head=[[{content:d.hari,colSpan:nc+2,styles:{halign:"left",fontSize:11}}],["Jam","Waktu",...S.classes]];
-    if(y>25&&y+18+body.length*6.4>ph-12){doc.addPage();y=12;}
-    doc.autoTable({startY:y,margin:{left:10,right:10,bottom:12},theme:"grid",rowPageBreak:"avoid",head,body,
-      styles:{fontSize:8.5,cellPadding:1.6,halign:"center",lineColor:[203,213,225],lineWidth:.15,textColor:[30,41,59]},
-      headStyles:{fillColor:[224,231,255],textColor:[55,48,163],fontStyle:"bold"},alternateRowStyles:{fillColor:[248,250,252]},
-      columnStyles:{0:{cellWidth:12,fontStyle:"bold"},1:{cellWidth:28}},
-      didParseCell:h=>{if(h.section!=="head")return;
-        if(h.row.index===0){h.cell.styles.fillColor=[79,70,229];h.cell.styles.textColor=[255,255,255];}}});
-    y=doc.lastAutoTable.finalY+5;
-  });
+  const two=!!(L&&L.two),GAP=8,usable=pw-20,tw0=two?(usable-GAP)/2:usable,jw=two?9:12,ww=two?22:28;
+  const build=d=>({
+    body:d.rows.map(r=>scIsN(r.jam)?[r.jam,r.waktu,...S.classes.map((_,i)=>{const v=r.cells[i]||"",rn=v?scRoomOf(S,r,i):"",c=rn&&RL[rn]?scRGB(RL[rn]):null;return c?{content:v,styles:{fillColor:c,textColor:scInkRGB(RL[rn])}}:v;})]
+      :[{content:`${r.jam}  (${r.waktu})`,colSpan:nc+2,styles:{halign:"center",fontStyle:"italic",fillColor:[254,243,199],textColor:[146,64,14]}}]),
+    head:[[{content:d.hari,colSpan:nc+2,styles:{halign:"left",fontSize:11}}],["Jam","Waktu",...S.classes]]});
+  // gambar satu tabel hari; kolom kelas dibuat sama lebar supaya rapi dan tidak dempet
+  const draw=(t,d,y0,x,tw,pr)=>{const b=build(d),cc=(tw-jw-ww)/nc,cs={0:{cellWidth:jw,fontStyle:"bold"},1:{cellWidth:ww}};
+    for(let i=0;i<nc;i++)cs[i+2]={cellWidth:cc};
+    t.autoTable({startY:y0,margin:{left:x,right:pw-x-tw,bottom:12},tableWidth:tw,theme:"grid",rowPageBreak:"avoid",head:b.head,body:b.body,
+      styles:{fontSize:pr.fs,cellPadding:{top:pr.py,bottom:pr.py,left:1,right:1},halign:"center",valign:"middle",lineColor:[203,213,225],lineWidth:.15,textColor:[30,41,59]},
+      headStyles:{fillColor:[224,231,255],textColor:[55,48,163],fontStyle:"bold"},alternateRowStyles:{fillColor:[248,250,252]},columnStyles:cs,
+      didParseCell:h=>{if(h.section==="head"&&h.row.index===0){h.cell.styles.fillColor=[79,70,229];h.cell.styles.textColor=[255,255,255];}}});
+    return t.lastAutoTable.finalY;};
+  // ukur tinggi asli tabel di dokumen sementara (halaman sangat tinggi) agar penempatan halaman akurat
+  const meas=(d,tw,pr)=>{const t=new lib({unit:"mm",format:[pw,3000],orientation:"portrait"});return draw(t,d,0,10,tw,pr);};
+  let pr={fs:8.5,py:1.6};
+  if(two){const room=ph-12-y,ps=[{fs:8,py:1.7},{fs:8,py:1.3},{fs:7.5,py:1}];
+    pr=ps.find(p=>Math.max(...days.map(d=>meas(d,tw0,p)))<=room)||ps[ps.length-1];}
+  const step=two?2:1;
+  for(let i=0;i<days.length;i+=step){
+    const p=days.slice(i,i+step),need=Math.max(...p.map(d=>meas(d,tw0,pr)));
+    if(y>25&&y+need>ph-12){doc.addPage();y=12;}
+    if(two&&y+need>ph-12){p.forEach(d=>{y=draw(doc,d,y,10,usable,pr)+6;});continue;} // terlalu tinggi untuk satu halaman: tampil bergantian
+    let bottom=y;p.forEach((d,k)=>{bottom=Math.max(bottom,draw(doc,d,y,10+k*(tw0+GAP),tw0,pr));});
+    y=bottom+6;
+  }
   const gk=Object.keys(S.guru).sort(),mk=Object.keys(S.mapel).sort((a,b)=>a-b);
   const tabs=[[["Kode Guru","Nama Guru"],gk.map(k=>[k,S.guru[k]]),18],[["Kode Mapel","Mata Pelajaran"],mk.map(k=>[k,S.mapel[k]]),20]];
     const k=tabs.length,tw=(pw-20-4*(k-1))/k,need=16+Math.max(...tabs.map(t=>t[1].length))*5.4;
@@ -2459,10 +2531,11 @@ function scPdf(){
   const lib=window.jspdf&&window.jspdf.jsPDF;
   if(!lib){showToast("Pustaka PDF belum termuat. Periksa koneksi internet.","⚠️");return;}
   const allc=scSt.mode==="kelas"&&scSt.sel==="ALL";
-  const doc=new lib({unit:"mm",format:"a4",orientation:allc?"landscape":"portrait"});
+  const S0=scSt.item.schedule,L=allc?scAllLayout(S0.classes.length,S0.days.filter(d=>scSt.day==="ALL"||d.hari===scSt.day).length):null;
+  const doc=new lib({unit:"mm",format:L?L.fmt:"a4",orientation:allc?"landscape":"portrait"});
   if(typeof doc.autoTable!=="function"){showToast("Pustaka tabel PDF belum termuat.","⚠️");return;}
   const S=scSt.item.schedule,kelas=scSt.mode==="kelas",cap=w=>w.charAt(0)+w.slice(1).toLowerCase(),RL=scRoomList(S);
-  if(allc){scPdfAll(doc,S,cap);return;}
+  if(allc){scPdfAll(doc,S,cap,L,lib);return;}
   const who=kelas?(S.classes[+scSt.sel]||""):(scSt.sel+" - "+(S.guru[scSt.sel]||scSt.sel));
   const rc=rn=>{const c=rn&&RL[rn]?scRGB(RL[rn]):null;return c?{content:rn,styles:{fillColor:c,textColor:scInkRGB(RL[rn])}}:(rn||"-");};
   let total=0;const blocks=[];
@@ -2631,6 +2704,8 @@ function scInit(){
     $("adminTabs").querySelectorAll("[data-tab]").forEach(x=>x.classList.toggle("sel",x===b));
     $("tabPortal").style.display=b.dataset.tab==="portal"?"":"none";
     $("tabJadwal").style.display=b.dataset.tab==="jadwal"?"":"none";
+    $("tabKaldik").style.display=b.dataset.tab==="kaldik"?"":"none";
+    if(b.dataset.tab==="kaldik")kdAdmin();
     if(b.dataset.tab==="jadwal")scAdmin();
   });
   $("sc_tpl").onclick=scDownloadFmt;$("sc_ex").onclick=()=>scDownload();$("sc_file").onchange=scOnFile;$("sc_pub").onclick=scPublish;
@@ -2643,6 +2718,130 @@ function renderPreview(){
   const y=getEditingYear(),h=((y&&y.links)||[]).map(l=>`<div class="linkcard" style="padding:8px 4px;gap:6px">${iconBadgeHTML(l.icon,20)}<span class="lb" style="font-size:10px">${escapeHtml(l.label)}</span></div>`).join("");
   ["pvDesktop","pvPhone"].forEach(id=>{const e=$(id);if(e)e.innerHTML=h;});
 }
+// ===== Kalender Akademik =====
+const KD_BLN=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+const KD_MON=["jan","feb","mar","apr","mei|may","jun","jul","agu|aug","sep","okt|oct","nov","des|dec"];
+const KD_COL=["#EF4444","#3B82F6","#10B981","#F59E0B","#8B5CF6","#EC4899","#14B8A6","#F97316","#6366F1","#84CC16"];
+let kdPend=null,kdIdx=null,kdIcon="svg:calendar",kdMsg="",kdItem=null;
+const kdP2=n=>String(n).padStart(2,"0");
+function kdMon(s){s=String(s).toLowerCase().slice(0,3);return KD_MON.findIndex(x=>x.split("|").includes(s))+1;}
+// terima: serial Excel, "20 Juli", "20/07", "20-7-2026", "2026-07-20"; tahun cadangan dari kolom TAHUN
+function kdDate(v,ty){
+  if(v===""||v==null)return null;
+  if(typeof v==="number"){const p=XLSX.SSF.parse_date_code(v);return p?{y:ty||p.y,m:p.m,d:p.d,x:!ty}:null;}
+  const s=String(v).trim();let m=/^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s);
+  if(m)return{y:+m[1],m:+m[2],d:+m[3],x:true};
+  m=/^(\d{1,2})\s*[\/\-. ]\s*(\d{1,2}|[A-Za-z]+)(?:\s*[\/\-. ]\s*(\d{2,4}))?$/.exec(s);if(!m)return null;
+  const mo=/^\d+$/.test(m[2])?+m[2]:kdMon(m[2]);if(!mo||mo>12||+m[1]<1||+m[1]>31)return null;
+  const yr=m[3]?(m[3].length===2?2000+ +m[3]:+m[3]):ty;return yr?{y:yr,m:mo,d:+m[1],x:!!m[3]}:null;
+}
+const kdISO=o=>o.y+"-"+kdP2(o.m)+"-"+kdP2(o.d);
+function kdParse(aoa){
+  let h=aoa.findIndex(r=>r.some(c=>/kegiatan/i.test(String(c))));
+  const ix={ty:1,s:2,e:3,k:4};
+  if(h>=0)aoa[h].forEach((c,i)=>{const t=String(c).toLowerCase();
+    if(t.includes("kegiatan"))ix.k=i;else if(t.includes("tahun"))ix.ty=i;else if(t.includes("mulai"))ix.s=i;else if(t.includes("akhir")||t.includes("selesai"))ix.e=i;});
+  const ev=[],bad=[];
+  aoa.slice(h+1).forEach((r,n)=>{
+    const k=String(r[ix.k]||"").trim();if(!k&&!String(r[ix.s]||"").trim())return;
+    const ty=parseInt(r[ix.ty],10)||0,line=h+n+2;
+    const s=kdDate(r[ix.s],ty);let e=(r[ix.e]===""||r[ix.e]==null)?s:kdDate(r[ix.e],ty);
+    if(!k||!s||!e){bad.push(line);return;}
+    if(kdISO(e)<kdISO(s)&&!e.x)e={...e,y:e.y+1};
+    if(kdISO(e)<kdISO(s)){bad.push(line);return;}
+    ev.push({s:kdISO(s),e:kdISO(e),k});
+  });
+  ev.sort((a,b)=>a.s<b.s?-1:a.s>b.s?1:0);
+  return{events:ev,bad};
+}
+function kdDownloadTpl(){
+  if(typeof XLSX==="undefined"){showToast("Pustaka Excel belum termuat.","⚠️");return;}
+  const ws=XLSX.utils.aoa_to_sheet([["NO","TAHUN","TANGGAL & BULAN MULAI","TANGGAL & BULAN AKHIR","KEGIATAN"],
+    [1,2026,"13 Juli","18 Juli","Masa Pengenalan Lingkungan Sekolah"],[2,2026,"20 Juli","","Hari Pertama Masuk Sekolah"],
+    [3,2026,"17 Agustus","","Upacara HUT Kemerdekaan RI"],[4,2026,"21 Desember","3 Januari","Libur Semester Ganjil"]]);
+  ws["!cols"]=[{wch:5},{wch:8},{wch:24},{wch:24},{wch:45}];
+  const pt=XLSX.utils.aoa_to_sheet([["PETUNJUK"],["Isi sheet KALDIK mulai baris 2. Jangan ubah judul kolom."],
+    ["TAHUN: tahun kegiatan dimulai, misal 2026."],["TANGGAL & BULAN: tulis 20 Juli, 20/07, atau format tanggal Excel biasa."],
+    ["TANGGAL & BULAN AKHIR: kosongkan bila kegiatan hanya 1 hari."],["Kegiatan lintas tahun (21 Desember - 3 Januari): cukup isi TAHUN awal, tahun akhir otomatis."]]);
+  pt["!cols"]=[{wch:90}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"KALDIK");XLSX.utils.book_append_sheet(wb,pt,"PETUNJUK");
+  XLSX.writeFile(wb,"Format_Kaldik.xlsx");
+}
+// --- tampilan kaldik ---
+function kdShort(iso){const p=iso.split("-");return +p[2]+" "+KD_BLN[+p[1]-1].slice(0,3);}
+function kdRender(){
+  const ev=(kdItem.kaldik.events||[]).map((x,i)=>({...x,c:KD_COL[i%KD_COL.length]}));
+  if(!ev.length){$("kdBody").innerHTML='<p class="sc-note" style="text-align:center;padding:40px 0">Belum ada kegiatan.</p>';return;}
+  let a=ev.reduce((m,x)=>x.s<m?x.s:m,ev[0].s),b=ev.reduce((m,x)=>x.e>m?x.e:m,ev[0].e);
+  let y=+a.slice(0,4),m=+a.slice(5,7);const ey=+b.slice(0,4),em=+b.slice(5,7),out=[];
+  for(let n=0;n<36&&(y<ey||(y===ey&&m<=em));n++){
+    const pre=y+"-"+kdP2(m)+"-",nd=new Date(y,m,0).getDate(),off=(new Date(y,m-1,1).getDay()+6)%7;
+    let cells='<span></span>'.repeat(off);
+    for(let d=1;d<=nd;d++){
+      const iso=pre+kdP2(d),hit=ev.filter(x=>x.s<=iso&&iso<=x.e),sun=(off+d-1)%7===6;
+      cells+=`<span class="kd-d${sun?" sun":""}${hit.length?" ev":""}${hit.length>1?" ev2":""}"${hit.length?` style="--c:${hit[0].c}${hit[1]?";--c2:"+hit[1].c:""}" title="${escapeHtml(hit.map(x=>x.k).join(" | "))}"`:""}>${d}</span>`;
+    }
+    const first=pre+"01",last=pre+kdP2(nd),ms=ev.filter(x=>x.s<=last&&x.e>=first);
+    const ket=ms.length?ms.map(x=>`<li><i style="background:${x.c}"></i><span><b>${x.s===x.e?kdShort(x.s):kdShort(x.s)+" – "+kdShort(x.e)}</b> ${escapeHtml(x.k)}</span></li>`).join(""):'<li class="none">Tidak ada kegiatan</li>';
+    out.push(`<section class="kd-m"><h3>${KD_BLN[m-1]} ${y}</h3><div class="kd-wk">${["Sen","Sel","Rab","Kam","Jum","Sab","Min"].map(x=>`<span>${x}</span>`).join("")}</div><div class="kd-days">${cells}</div><ul class="kd-ket">${ket}</ul></section>`);
+    if(++m>12){m=1;y++;}
+  }
+  $("kdBody").innerHTML=`<p class="sc-note">Tanggal berwarna = ada kegiatan (titik kecil = ada lebih dari satu kegiatan). Keterangan ada di bawah tiap bulan.</p><div class="kd-grid">${out.join("")}</div>`;
+}
+function openKaldik(item){kdItem=item;$("kdTitle").textContent=item.label||"Kalender Akademik";kdRender();openModal("kdOverlay");}
+// --- admin ---
+function kdIconPick(){const w=$("kd_iconWrap");w.innerHTML="";w.appendChild(buildIconSelector(kdIcon,ic=>{kdIcon=ic;}));}
+function kdReset(){kdPend=null;kdIdx=null;kdMsg="";kdIcon="svg:calendar";$("kd_label").value="Kalender Akademik";$("kd_file").value="";$("kd_cancel").style.display="none";kdIconPick();}
+function kdAdmin(){
+  const y=getEditingYear();$("kd_year").textContent=y?y.label:"-";
+  const ls=(y&&y.links)||[],box=$("kd_list");box.innerHTML="";
+  ls.forEach((l,i)=>{if(l.type!=="kaldik")return;
+    const row=document.createElement("div");row.className="existing";
+    row.innerHTML=`${iconBadgeHTML(l.icon,20)}<span class="meta"><span class="lb">${escapeHtml(l.label)}</span><span class="url">${(l.kaldik.events||[]).length} kegiatan</span></span>
+    <div class="existing-actions"><button class="btn-icon edit" aria-label="Edit">✎</button><button class="btn-icon del" aria-label="Hapus">✕</button></div>`;
+    row.querySelector(".edit").onclick=()=>editKaldik(i);
+    row.querySelector(".del").onclick=()=>{ls.splice(i,1);saveConfig("Kaldik dihapus dari menu.");kdReset();renderAdminList();render();renderPreview();kdAdmin();};
+    box.appendChild(row);});
+  if(!box.children.length)box.innerHTML='<p class="sc-note">Belum ada kaldik di tahun ajaran ini.</p>';
+  $("kd_msg").innerHTML=kdMsg;$("kd_pub").disabled=!kdPend;$("kd_pub").style.opacity=kdPend?1:.5;
+  $("kd_pub").textContent=kdIdx!==null?"Perbarui Kaldik di Menu":"Terbitkan ke Menu";
+}
+function editKaldik(i){
+  const l=getEditingYear().links[i];if(!l)return;
+  kdIdx=i;kdPend=l.kaldik;kdIcon=l.icon||"svg:calendar";$("kd_label").value=l.label;$("kd_cancel").style.display="block";
+  kdMsg=`<span class="sc-ok">Mengedit "${escapeHtml(l.label)}". Unggah Excel baru untuk mengganti isi, atau ubah nama/ikon lalu simpan.</span>`;
+  kdIconPick();$("adminOverlay").querySelector('[data-tab="kaldik"]').click();kdAdmin();
+}
+async function kdOnFile(e){
+  const f=e.target.files[0];if(!f)return;
+  try{
+    if(typeof XLSX==="undefined")throw new Error("Pustaka Excel belum termuat. Periksa koneksi internet.");
+    const wb=XLSX.read(await f.arrayBuffer());let R=null;
+    for(const n of wb.SheetNames){const aoa=XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:""});
+      if(aoa.some(r=>r.some(c=>/kegiatan/i.test(String(c))))){R=kdParse(aoa);break;}}
+    if(!R)throw new Error("Kolom KEGIATAN tidak ditemukan. Gunakan format dari tombol Unduh Format Excel.");
+    if(!R.events.length)throw new Error("Tidak ada baris kegiatan yang valid. Periksa kolom TAHUN dan tanggal.");
+    kdPend={events:R.events};
+    kdMsg=`<span class="sc-ok">✓ Terbaca ${R.events.length} kegiatan.</span>`+(R.bad.length?`<br><span class="sc-warn">⚠ Baris dilewati (tanggal/kegiatan tidak valid): ${R.bad.slice(0,15).join(", ")}.</span>`:"");
+  }catch(x){kdPend=null;kdMsg=`<span class="sc-warn">✗ ${escapeHtml(x.message)}</span>`;}
+  kdAdmin();
+}
+function kdPublish(){
+  if(!kdPend)return;
+  const y=getEditingYear();y.links=y.links||[];
+  const old=kdIdx!==null&&y.links[kdIdx]?y.links[kdIdx].id:null;
+  const item={type:"kaldik",id:old||("k"+uid().slice(1)),label:$("kd_label").value.trim()||"Kalender Akademik",icon:kdIcon||"svg:calendar",kaldik:kdPend};
+  if(kdIdx!==null&&y.links[kdIdx])y.links[kdIdx]=item;else y.links.push(item);
+  saveConfig("Kaldik berhasil diterbitkan ke menu!");kdReset();renderAdminList();render();renderPreview();kdAdmin();
+}
+function kdInit(){
+  $("kd_tpl").onclick=kdDownloadTpl;$("kd_file").onchange=kdOnFile;$("kd_pub").onclick=kdPublish;
+  $("kd_cancel").onclick=()=>{kdReset();kdAdmin();};
+  $("kdClose").onclick=()=>closeModal("kdOverlay");
+  $("kdOverlay").onclick=e=>{if(e.target===$("kdOverlay"))closeModal("kdOverlay");};
+  kdReset();
+}
+kdInit();
 scInit();
 
 init();
