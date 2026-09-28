@@ -1995,6 +1995,10 @@ function scArgb(c){
   if(c.tint){const t=c.tint;hex=[0,2,4].map(i=>{const v=parseInt(hex.substr(i,2),16),o=t>0?v+(255-v)*t:v*(1+t);return Math.max(0,Math.min(255,Math.round(o))).toString(16).padStart(2,"0");}).join("");}
   return "#"+hex.toUpperCase();
 }
+// warna huruf otomatis: putih di latar gelap, gelap di latar terang (luminans WCAG)
+function scLum(c){const f=v=>{v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4);};return .2126*f(c[0])+.7152*f(c[1])+.0722*f(c[2]);}
+function scInkRGB(hex){const c=scRGB(hex);return c&&scLum(c)<.36?[255,255,255]:[30,41,59];}
+const scInk=hex=>scInkRGB(hex).every(v=>v===255)?"#FFFFFF":"#1E293B";
 function scColorName(hex){
   const c=scRGB(hex);if(!c)return "";const [r,g,b]=c.map(v=>v/255),mx=Math.max(r,g,b),mn=Math.min(r,g,b),l=(mx+mn)/2,d=mx-mn;
   let h=0;if(d){h=mx===r?((g-b)/d)%6:mx===g?(b-r)/d+2:(r-g)/d+4;h=(h*60+360)%360;}
@@ -2133,7 +2137,7 @@ function scBuildWB(D,isSample){
         const rr=r+2+i, isBrk=!/^\d+$/.test(String(w.jam).trim()), zb=i%2?X.zebra:X.white, bg=isBrk?X.brk:zb;
         paint(rr,c+1,{v:w.waktu,bg,b:isBrk,co:isBrk?X.brkTx:X.ink});
         paint(rr,c+2,{v:isBrk?w.jam:(+w.jam),bg,b:true,i:isBrk,co:isBrk?X.brkTx:X.ink});
-        w.cells.forEach((v,k)=>{const rn=v?scRoomOf(D,w,k):"",hx=rn&&RL[rn];paint(rr,c+3+k,{v,bg:hx?"FF"+hx.slice(1).toUpperCase():bg});});
+        w.cells.forEach((v,k)=>{const rn=v?scRoomOf(D,w,k):"",hx=rn&&RL[rn];paint(rr,c+3+k,{v,bg:hx?"FF"+hx.slice(1).toUpperCase():bg,co:hx?"FF"+scInk(hx).slice(1):undefined});});
         for(let k=w.cells.length;k<n;k++)paint(rr,c+3+k,{bg});
         paint(rr,c,{bg:dc});
         ws.getRow(rr+1).height=isBrk?18:22;
@@ -2408,7 +2412,7 @@ function scPdfAll(doc,S,cap){
       doc.setTextColor(30,41,59);doc.text(lb,x+7,y+3.2);x+=w+4;});
     y+=9;}
   days.forEach(d=>{
-    const body=d.rows.map(r=>scIsN(r.jam)?[r.jam,r.waktu,...S.classes.map((_,i)=>{const v=r.cells[i]||"",rn=v?scRoomOf(S,r,i):"",c=rn&&RL[rn]?scRGB(RL[rn]):null;return c?{content:v,styles:{fillColor:c}}:v;})]
+    const body=d.rows.map(r=>scIsN(r.jam)?[r.jam,r.waktu,...S.classes.map((_,i)=>{const v=r.cells[i]||"",rn=v?scRoomOf(S,r,i):"",c=rn&&RL[rn]?scRGB(RL[rn]):null;return c?{content:v,styles:{fillColor:c,textColor:scInkRGB(RL[rn])}}:v;})]
       :[{content:`${r.jam}  (${r.waktu})`,colSpan:nc+2,styles:{halign:"center",fontStyle:"italic",fillColor:[254,243,199],textColor:[146,64,14]}}]);
     const head=[[{content:d.hari,colSpan:nc+2,styles:{halign:"left",fontSize:11}}],["Jam","Waktu",...S.classes]];
     if(y>25&&y+18+body.length*6.4>ph-12){doc.addPage();y=12;}
@@ -2443,7 +2447,7 @@ function scPdf(){
   const S=scSt.item.schedule,kelas=scSt.mode==="kelas",cap=w=>w.charAt(0)+w.slice(1).toLowerCase(),RL=scRoomList(S);
   if(allc){scPdfAll(doc,S,cap);return;}
   const who=kelas?(S.classes[+scSt.sel]||""):(scSt.sel+" - "+(S.guru[scSt.sel]||scSt.sel));
-  const rc=rn=>{const c=rn&&RL[rn]?scRGB(RL[rn]):null;return c?{content:rn,styles:{fillColor:c}}:(rn||"-");};
+  const rc=rn=>{const c=rn&&RL[rn]?scRGB(RL[rn]):null;return c?{content:rn,styles:{fillColor:c,textColor:scInkRGB(RL[rn])}}:(rn||"-");};
   let total=0;const blocks=[];
   S.days.filter(d=>scSt.day==="ALL"||d.hari===scSt.day).forEach(d=>{
     const body=[];let n=0;
@@ -2492,7 +2496,7 @@ const SC_MXCSS=".sc-mx{border-collapse:collapse;width:100%;font-size:12px}.sc-mx
 function scCardAll(d){
   const S=scSt.item.schedule,nc=S.classes.length,RL=scRoomList(S);
   const rows=d.rows.map(r=>scIsN(r.jam)?`<tr><td>${scE(r.jam)}</td><td>${scE(r.waktu)}</td>${S.classes.map((_,i)=>{const v=r.cells[i]||"",rn=v?scRoomOf(S,r,i):"",c=rn&&RL[rn];
-      return c?`<td style="background:${c};color:#1E293B" title="${scE(rn)}">${scE(v)}</td>`:`<td>${scE(v)}</td>`;}).join("")}</tr>`
+      return c?`<td style="background:${c};color:${scInk(c)}" title="${scE(rn)}">${scE(v)}</td>`:`<td>${scE(v)}</td>`;}).join("")}</tr>`
     :`<tr class="br"><td colspan="${nc+2}">${scE(r.jam)} (${scE(r.waktu)})</td></tr>`).join("");
   return{n:1,html:`<section class="sc-card"><h3>${scE(d.hari)}</h3><div style="overflow-x:auto"><table class="sc-mx"><tr><th>Jam</th><th>Waktu</th>${S.classes.map(c=>`<th>${scE(c)}</th>`).join("")}</tr>${rows}</table></div></section>`};
 }
