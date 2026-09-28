@@ -36,6 +36,11 @@
     --shadow-hover: 0 20px 25px -5px rgba(79, 70, 229, 0.12), 0 8px 10px -6px rgba(79, 70, 229, 0.08);
   }
   
+  /* Mode halaman jadwal saja (link ?jadwal=...): tanpa menu portal, tanpa admin */
+  html.sc-only main, html.sc-only #gearBtn, html.sc-only .overlay:not(#schedOverlay), html.sc-only #scClose, html.sc-only #banner { display: none !important; }
+  html.sc-only #schedOverlay { position: static; display: block; opacity: 1; pointer-events: auto; background: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+  html.sc-only #schedOverlay .sheet { width: 100% !important; max-width: 1500px !important; margin: 0 auto; max-height: none; overflow: visible; transform: none; border-radius: 0; box-shadow: none; background: transparent !important; padding: 20px 16px calc(32px + env(safe-area-inset-bottom, 0px)); }
+
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
       --bg: #0B0F19; 
@@ -444,6 +449,7 @@
   .sc-ok{color:#15803d}.sc-warn{color:#b45309}
   .sc-file{display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
 </style>
+<script>if(/[?&]jadwal(=|&|$)/.test(location.search))document.documentElement.classList.add("sc-only");</script>
 </head>
 <body>
 
@@ -822,6 +828,7 @@ function subscribeRealtime(){
           saveToLocalStorage(cfg);
           renderYearSelect();
           render();
+          if(SC_ONLY&&scSt.item&&scSt.item.id){const nw=scFindById(scSt.item.id);if(nw){scSt.item=nw;scRender();}}
         }
       })
       .subscribe((status, err) => {
@@ -1948,6 +1955,10 @@ $("saveAnnBtn").onclick = ()=>{
 };
 
 async function init(){
+  if(SC_ONLY){
+    document.querySelector("header .sub").textContent="Jadwal Pelajaran";
+    $("scBody").innerHTML='<p class="sc-note" style="text-align:center;padding:48px 0">Memuat jadwal…</p>';
+  }
   buildIconPicker();
   renderBtnIconSelector();
   renderBtnLinkRows();
@@ -2535,12 +2546,15 @@ function scFindById(id){
   for(const y of cfg.years){for(const l of (y.links||[])){if(l.type==="schedule"&&l.id===id)return l;}}
   return null;
 }
+const SC_ONLY=document.documentElement.classList.contains("sc-only");
 function scOpenFromUrl(){
   const q=new URLSearchParams(location.search);
   if(!q.has("jadwal"))return;
   const id=q.get("jadwal");let item=id?scFindById(id):null;
   if(!item&&!id){const y=getViewerYear();item=((y&&y.links)||[]).find(l=>l.type==="schedule")||null;}
-  if(item)openSchedule(item);else showToast("Jadwal tidak ditemukan. Minta link terbaru ke sekolah.","⚠️");
+  if(item){openSchedule(item);if(SC_ONLY){document.title=(item.label||"Jadwal Pelajaran")+" - SMK Widya Mandala Tambak";}}
+  else if(SC_ONLY)$("scBody").innerHTML='<p class="sc-note" style="text-align:center;padding:48px 0">Jadwal tidak ditemukan. Minta link terbaru ke pihak sekolah.</p>';
+  else showToast("Jadwal tidak ditemukan. Minta link terbaru ke sekolah.","⚠️");
 }
 function openSchedule(item){
   scSt.item=item;scSt.mode="kelas";scSt.sel="ALL";scSt.day="ALL";
