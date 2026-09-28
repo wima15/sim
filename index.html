@@ -2206,7 +2206,7 @@ function scBuildWB(D,isSample){
   pr++;section("B. ATURAN PENTING");
   ["JANGAN mengubah tulisan judul kolom: HR, WAKTU, JAM KE, NO, NAMA GURU, KODE, MATA PELAJARAN. Sistem mencari tulisan ini untuk membaca jadwal.",
    "Nama hari (SENIN, SELASA, dst.) cukup ditulis satu kali di kotak hari yang digabung; jangan diisi ulang di tiap baris.",
-   "Baris istirahat / kegiatan non-belajar: isi kolom WAKTU, lalu tulis kata Istirahat (atau Upacara, Sholat, dll.) di kolom JAM KE — bukan angka. Kotak kelasnya dikosongkan.",
+   "Baris istirahat / kegiatan non-belajar: isi kolom WAKTU, lalu tulis kata Istirahat 1 / Istirahat 2 (atau Istirahat, Upacara, Sholat, dll.) di kolom JAM KE — bukan angka. Bila tidak ada istirahat kedua, cukup tidak membuat baris Istirahat 2. Kotak kelasnya dikosongkan.",
    "Menambah jam pelajaran: sisipkan baris di DALAM blok hari (jangan ada baris kosong di tengah blok). Blok yang terpotong baris kosong akan dianggap selesai.",
    "Judul kelas ditulis 2 baris: baris atas tingkat (X / XI / XII), baris bawah jurusan (ANM / TO1). Hasilnya dibaca sebagai \"X ANM\". Urutan & jumlah kelas harus sama di semua hari.",
    "Boleh menambah hari: salin blok hari yang ada, ganti nama harinya. Blok hari boleh berdampingan (kiri-kanan) atau disusun ke bawah.",
@@ -2281,9 +2281,14 @@ function scDownloadBasic(){
 
 // ===== Pengaturan format jadwal (Shift 1 + Shift 2 digabung, kelas, ruang berwarna) =====
 const SC_KEY="sc_fmt_v2", SC_DAYS=["SENIN","SELASA","RABU","KAMIS","JUMAT","SABTU"];
-const scBlkDef=(start,count,br)=>({start,dur:30,count,br});
+const scBlkDef=(start,count,b1a,b1d,b2a,b2d)=>({start,dur:30,count,b1a:b1a||"",b1d:b1d||"",b2a:b2a||"",b2d:b2d||""});
+// pengaturan lama memakai teks "4:15, 8:10" -> diubah menjadi istirahat 1 & 2
+function scNormBlk(b){if(!b)return b;
+  if(b.b1a===undefined&&b.b2a===undefined){const q=String(b.br||"").split(",").map(x=>x.split(":").map(v=>parseInt(v,10))).filter(x=>x[0]>0&&x[1]>0);
+    b.b1a=q[0]?q[0][0]:"";b.b1d=q[0]?q[0][1]:"";b.b2a=q[1]?q[1][0]:"";b.b2d=q[1]?q[1][1]:"";}
+  delete b.br;return b;}
 function scDefFmt(){const d={};
-  SC_DAYS.forEach(h=>d[h]=h==="SABTU"?{on:true,a:scBlkDef("07:15",5,"3:15"),b:scBlkDef("11:30",0,"")}:{on:true,a:scBlkDef("07:15",8,"4:15"),b:scBlkDef("11:30",10,"5:15")});
+  SC_DAYS.forEach(h=>d[h]=h==="SABTU"?{on:true,a:scBlkDef("07:15",5,3,15),b:scBlkDef("11:30",0)}:{on:true,a:scBlkDef("07:15",8,4,15),b:scBlkDef("11:30",10,5,15)});
   return{classes:SC_SAMPLE.classes.slice(),rooms:["Ruang 1","Ruang 2","Ruang 3","Ruang 4","Ruang 5","Ruang 6"],days:d};}
 function scLoadFmt(){
   try{const x=JSON.parse(localStorage.getItem(SC_KEY));if(x&&x.days&&x.classes)return x;}catch(e){}
@@ -2291,22 +2296,26 @@ function scLoadFmt(){
     if(o&&o.shifts&&o.shifts.length){const f=scDefFmt(),s1=o.shifts[0],s2=o.shifts[1],cl=[],rm=[];
       o.shifts.forEach(s=>s.classes.forEach(l=>{const q=String(l).split("|"),n=q[0].trim(),r=(q[1]||"").trim();if(n&&!cl.includes(n))cl.push(n);if(r&&!rm.includes(r))rm.push(r);}));
       if(cl.length)f.classes=cl;if(rm.length)f.rooms=rm;
-      SC_DAYS.forEach(h=>{const g=(s,dflt)=>{const d=s&&s.days&&s.days[h];return d&&d.on?{start:d.start,dur:d.dur,count:d.count,br:d.br}:dflt;};
-        f.days[h]={on:true,a:g(s1,scBlkDef("07:15",0,"")),b:g(s2,scBlkDef("11:30",0,""))};});
+      SC_DAYS.forEach(h=>{const g=(s,dflt)=>{const d=s&&s.days&&s.days[h];return d&&d.on?scNormBlk({start:d.start,dur:d.dur,count:d.count,br:d.br}):dflt;};
+        f.days[h]={on:true,a:g(s1,scBlkDef("07:15",0)),b:g(s2,scBlkDef("11:30",0))};});
       return f;}}catch(e){}
   return scDefFmt();
 }
 let scFmt=scLoadFmt();
+SC_DAYS.forEach(h=>{const d=scFmt.days[h];if(d){scNormBlk(d.a);scNormBlk(d.b);}});
 const scFmtSave=()=>{try{localStorage.setItem(SC_KEY,JSON.stringify(scFmt));}catch(e){}};
 const scP2=n=>String(n).padStart(2,"0"), scHM=x=>scP2(Math.floor(x/60))+"."+scP2(x%60);
 // satu blok shift -> daftar slot; nomor jam berlanjut dari n0
 function scBlk(b,n0,out){
   if(!b||!(+b.count>0))return n0;
-  const [h,m]=String(b.start||"07:00").split(":").map(Number);let t=h*60+m;const brs={};
-  String(b.br||"").split(",").forEach(s=>{const q=s.split(":").map(x=>parseInt(x,10));if(q[0]>0&&q[1]>0)brs[q[0]]=q[1];});
+  scNormBlk(b);
+  const [h,m]=String(b.start||"07:00").split(":").map(Number);let t=h*60+m;
+  // istirahat 1 & 2; istirahat 2 dikosongkan = tidak ada istirahat ke-2
+  const bl=[[+b.b1a,+b.b1d],[+b.b2a,+b.b2d]].filter(x=>x[0]>0&&x[1]>0&&x[0]<=+b.count),brs={};
+  bl.forEach((x,k)=>{brs[x[0]]={min:x[1],nm:bl.length>1?"Istirahat "+(k+1):"Istirahat"};});
   const dur=+b.dur||30;
   for(let i=1;i<=+b.count;i++){out.push({waktu:scHM(t)+" - "+scHM(t+dur),jam:String(n0+i)});t+=dur;
-    if(brs[i]){out.push({waktu:scHM(t)+" - "+scHM(t+brs[i]),jam:"Istirahat"});t+=brs[i];}}
+    if(brs[i]){out.push({waktu:scHM(t)+" - "+scHM(t+brs[i].min),jam:brs[i].nm});t+=brs[i].min;}}
   return n0+ +b.count;
 }
 function scSlots(d){if(!d||!d.on)return[];const out=[],n=scBlk(d.a,0,out);scBlk(d.b,n,out);return out;}
@@ -2330,7 +2339,11 @@ function scFmtRender(){
     <div><label>Mulai</label><input type="time" data-b="${k}" data-k="start" value="${d[k].start}"></div>
     <div><label>Menit / jam</label><input type="number" min="5" data-b="${k}" data-k="dur" value="${d[k].dur}"></div>
     <div><label>Jumlah jam</label><input type="number" min="0" max="20" data-b="${k}" data-k="count" value="${d[k].count}"></div>
-    <div><label>Istirahat (setelah jam:menit)</label><input data-b="${k}" data-k="br" value="${escapeHtml(d[k].br)}" placeholder="4:15, 8:10"></div></div></div>`;
+    </div><div class="scf-g">
+    <div><label>Istirahat 1: setelah jam ke-</label><input type="number" min="1" data-b="${k}" data-k="b1a" value="${d[k].b1a??""}" placeholder="kosong = tidak ada"></div>
+    <div><label>Istirahat 1: durasi (menit)</label><input type="number" min="1" data-b="${k}" data-k="b1d" value="${d[k].b1d??""}"></div>
+    <div><label>Istirahat 2: setelah jam ke-</label><input type="number" min="1" data-b="${k}" data-k="b2a" value="${d[k].b2a??""}" placeholder="kosong = tidak ada"></div>
+    <div><label>Istirahat 2: durasi (menit)</label><input type="number" min="1" data-b="${k}" data-k="b2d" value="${d[k].b2d??""}"></div></div></div>`;
   box.innerHTML=`<style>#sc_fmt input,#sc_fmt select,#sc_fmt textarea{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--ink);font:inherit;font-size:13px}
   #sc_fmt input[type=checkbox]{width:auto}#sc_fmt label{font-size:11.5px;color:var(--muted);font-weight:600}.scf-d{border:1px solid var(--border);border-radius:12px;padding:10px;margin-top:8px;background:var(--surface)}
   .scf-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:8px;margin-top:4px}.scf-rc{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
@@ -2351,7 +2364,7 @@ function scFmtRender(){
     el.querySelectorAll("[data-k]").forEach(i=>{const k=i.dataset.k,bk=i.dataset.b;
       if(k==="copy")i.onchange=()=>{if(!i.value)return;const src=f.days[i.value];d.on=true;d.a={...src.a};d.b={...src.b};scFmtSave();scFmtRender();};
       else if(k==="on")i.onchange=()=>{d.on=i.checked;scFmtSave();el.querySelector("[data-pv]").innerHTML=scPv(d);};
-      else i.oninput=()=>{d[bk][k]=(k==="dur"||k==="count")?(+i.value||0):i.value;scFmtSave();el.querySelector("[data-pv]").innerHTML=scPv(d);};});});
+      else i.oninput=()=>{d[bk][k]=(k==="dur"||k==="count")?(+i.value||0):(k==="start"?i.value:(i.value===""?"":(+i.value||"")));scFmtSave();el.querySelector("[data-pv]").innerHTML=scPv(d);};});});
 }
 function scDownloadFmt(){
   const D=scFmtData();if(!D.classes.length){showToast("Isi daftar kelas dulu.","⚠️");return;}
