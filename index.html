@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light only">
+<meta name="theme-color" content="#F8FAFC">
 <title>SMK Widya Mandala Tambak - Sistem Informasi</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,6 +16,7 @@
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <style>
   :root {
+    color-scheme: light;
     --bg: #F8FAFC; 
     --surface: #FFFFFF; 
     --ink: #0F172A; 
@@ -41,21 +44,6 @@
   html.sc-only #schedOverlay { position: static; display: block; opacity: 1; pointer-events: auto; background: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
   html.sc-only #schedOverlay .sheet { width: 100% !important; max-width: 1500px !important; margin: 0 auto; max-height: none; overflow: visible; transform: none; border-radius: 0; box-shadow: none; background: transparent !important; padding: 20px 16px calc(32px + env(safe-area-inset-bottom, 0px)); }
 
-  @media (prefers-color-scheme: dark){
-    :root:not([data-theme="light"]){
-      --bg: #0B0F19; 
-      --surface: #151D2A; 
-      --ink: #F1F5F9; 
-      --muted: #94A3B8;
-      --border: #222F43;
-      --primary: #6366F1; 
-      --primary-hover: #818CF8;
-      --primary-ink: #FFFFFF; 
-      --danger: #F87171;
-      --header-bg: rgba(11, 15, 25, 0.85);
-      --shadow-hover: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
-    }
-  }
   
   * { box-sizing: border-box; }
   html { scroll-padding-top: env(safe-area-inset-top, 0px); }
@@ -187,6 +175,29 @@
     transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   }
   .overlay.show .sheet { transform: translateY(0); }
+
+  /* Kata sandi & tombol banyak link: muncul di tengah layar */
+  #pwOverlay, #linkGroupOverlay { align-items: center; padding: 20px; }
+  #pwOverlay .sheet, #linkGroupOverlay .sheet {
+    border-radius: var(--radius-lg); padding-bottom: 28px; box-shadow: 0 24px 60px rgba(0,0,0,0.3);
+    transform: translateY(14px) scale(0.97);
+  }
+  #pwOverlay .sheet { max-width: 420px; }
+  #linkGroupOverlay .sheet { max-width: 560px; }
+  #pwOverlay.show .sheet, #linkGroupOverlay.show .sheet { transform: none; }
+
+  /* Menu admin: satu halaman penuh */
+  #adminOverlay { align-items: stretch; background: var(--bg); backdrop-filter: none; -webkit-backdrop-filter: none; }
+  #adminOverlay .sheet {
+    max-width: none; width: 100%; height: 100%; max-height: none; border-radius: 0; box-shadow: none;
+    padding: 0 max(20px, calc((100% - 860px) / 2)) calc(40px + env(safe-area-inset-bottom, 0px));
+    transform: translateY(24px); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  #adminOverlay.show .sheet { transform: none; }
+  #adminOverlay .top-row {
+    position: sticky; top: 0; z-index: 5; background: var(--bg); margin-bottom: 8px;
+    padding: calc(16px + env(safe-area-inset-top, 0px)) 0 12px; border-bottom: 1px solid var(--border);
+  }
   
   .top-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
   .top-row h2 { font-weight: 800; font-size: 19px; margin: 0; color: var(--ink); letter-spacing: -0.3px; }
@@ -399,6 +410,39 @@
   .ann-expired-tag { color: var(--danger); font-weight: 700; }
   #annTypeToggle .type-toggle-btn { padding: 9px 4px; font-size: 12.5px; }
 
+  /* Ijin Guru */
+  .field select {
+    width: 100%; padding: 13px 16px; border-radius: var(--radius-md); border: 1px solid var(--border);
+    background: var(--surface); color: var(--ink); font-size: 14.5px; font-family: inherit; font-weight: 500;
+  }
+  #leaves { display: none; flex-direction: column; gap: 14px; margin-bottom: 32px; }
+  .lv-badge { position: absolute; top: 8px; right: 8px; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 100px; background: #EF4444; color: #fff; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+  .lv-add {
+    margin-left: auto; background: var(--surface); color: var(--primary); border: 1px solid var(--primary);
+    border-radius: 100px; padding: 7px 14px; font-size: 12.5px; font-weight: 800; cursor: pointer; font-family: inherit; transition: all 0.2s;
+  }
+  .lv-add:hover { background: var(--primary); color: #fff; }
+  .lv-label { font-size: 11.5px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin: 14px 0 8px; }
+  .lv-tasks { display: flex; flex-direction: column; gap: 8px; }
+  .lv-task { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; }
+  .lv-task-h { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 5px; }
+  .lv-chip { font-size: 11.5px; font-weight: 800; padding: 2px 10px; border-radius: 100px; background: var(--ann-bg, var(--bg)); color: var(--ann-color, var(--primary)); word-break: break-word; }
+  .lv-chip.mp { background: var(--surface); color: var(--ink); border: 1px solid var(--border); }
+  .lv-task-b { font-size: 13.5px; line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
+  .lv-mine { margin-top: 12px; }
+  .lv-cancel { background: none; border: none; color: var(--danger); font-weight: 700; font-size: 12.5px; cursor: pointer; font-family: inherit; padding: 0; }
+  #lvReasonToggle { display: grid; grid-template-columns: 1fr 1fr; }
+  #lvReasonToggle .type-toggle-btn { padding: 10px 6px; font-size: 12.5px; }
+  .lv-form-task { border: 1px solid var(--border); background: var(--surface); border-radius: var(--radius-md); padding: 12px; margin-bottom: 10px; }
+  .lv-form-task-h { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: 12.5px; font-weight: 800; color: var(--muted); }
+  .lv-form-task .lv-2 { display: flex; gap: 8px; margin-bottom: 8px; }
+  .lv-form-task input, .lv-form-task textarea {
+    width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg);
+    color: var(--ink); font-size: 13.5px; font-family: inherit; font-weight: 500;
+  }
+  .lv-form-task textarea { min-height: 64px; resize: vertical; line-height: 1.5; }
+  .lv-form-task input:focus, .lv-form-task textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15); }
+
   #toast {
     position: fixed;
     bottom: 24px;
@@ -427,6 +471,9 @@
 
   /* Jadwal Pelajaran */
   .sc-tabs{display:flex;gap:8px;margin-bottom:18px}
+  #adminTabs{flex-wrap:wrap}
+  #adminTabs .type-toggle-btn{flex:1 1 30%;padding:10px 6px;font-size:12.5px}
+  @media (min-width: 720px){ #adminTabs .type-toggle-btn{flex:1 1 0} }
   .sc-two{grid-template-columns:repeat(2,minmax(0,1fr))!important;align-items:start}@media(max-width:820px){.sc-two{grid-template-columns:1fr!important}}
   .sc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:12px}
   .sc-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden}
@@ -501,6 +548,7 @@
     </div>
   </div>
   <section id="announcements" aria-label="Pengumuman"></section>
+  <section id="leaves" aria-label="Ijin Guru"></section>
   <div id="banner"></div>
   <div class="searchbar" id="searchWrap" style="display:none;">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
@@ -530,12 +578,56 @@
   </div>
 </div>
 
+<!-- leave (ijin guru) modal -->
+<div class="overlay" id="leaveOverlay">
+  <div class="sheet">
+    <div class="top-row"><h2>Form Ijin Guru</h2><button class="closeX" id="lvClose">✕</button></div>
+    <div class="field">
+      <label>Nama Guru</label>
+      <input id="lvName" maxlength="80" placeholder="Nama lengkap beserta gelar" autocomplete="off" list="lvNameList">
+      <datalist id="lvNameList"></datalist><datalist id="lvKelasList"></datalist><datalist id="lvMapelList"></datalist>
+      <p class="sc-note" id="lvGuruHint" style="display:none;margin:8px 0 0;"></p>
+      <button type="button" class="btn btn-ghost" id="lvFillTasks" style="display:none;margin-top:8px;font-size:13px;padding:8px 14px;">Isi kelas &amp; mapel dari penugasan saya</button>
+    </div>
+    <div class="field">
+      <label>Alasan Ijin</label>
+      <div class="type-toggle" id="lvReasonToggle">
+        <button type="button" class="type-toggle-btn sel" data-r="sakit">Sakit</button>
+        <button type="button" class="type-toggle-btn" data-r="keluarga">Kepentingan Keluarga</button>
+        <button type="button" class="type-toggle-btn" data-r="dinas">Dinas Luar</button>
+        <button type="button" class="type-toggle-btn" data-r="lainnya">Lainnya</button>
+      </div>
+    </div>
+    <div class="field">
+      <label id="lvNoteLbl">Keterangan tambahan (opsional)</label>
+      <textarea id="lvNote" rows="2" maxlength="300" placeholder="Tulis keterangan singkat..." style="min-height:64px;"></textarea>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label>Tanggal Mulai</label>
+        <input type="date" id="lvStart">
+      </div>
+      <div class="field">
+        <label>Sampai Tanggal (opsional)</label>
+        <input type="date" id="lvEnd">
+      </div>
+    </div>
+    <div class="section-title" style="margin-top:8px;">Tugas untuk Kelas yang Ditinggalkan (wajib)</div>
+    <div id="lvTaskRows"></div>
+    <button type="button" class="btn btn-ghost" id="lvAddTask" style="margin-bottom:16px;font-size:13px;padding:10px 16px;">+ Tambah Kelas / Mapel</button>
+    <p class="err" id="lvErr"></p>
+    <button class="btn btn-primary" id="lvSubmit">Kirim Ijin</button>
+  </div>
+</div>
+
 <!-- admin modal -->
 <div class="overlay" id="adminOverlay">
   <div class="sheet">
     <div class="top-row"><h2>Pengaturan Portal</h2><button class="closeX" id="adminClose">✕</button></div>
     <div class="type-toggle sc-tabs" id="adminTabs">
       <button type="button" class="type-toggle-btn sel" data-tab="portal">Portal &amp; Link</button>
+      <button type="button" class="type-toggle-btn" data-tab="pengumuman">Pengumuman</button>
+      <button type="button" class="type-toggle-btn" data-tab="ijin">Ijin Guru</button>
       <button type="button" class="type-toggle-btn" data-tab="jadwal">Jadwal Pelajaran</button>
       <button type="button" class="type-toggle-btn" data-tab="kaldik">Kaldik</button>
     </div>
@@ -619,7 +711,18 @@
     </div>
     <button class="btn btn-ghost" id="addTextBtn" style="margin-bottom:20px;">+ Tambah Teks</button>
 
-    <div class="section-title" id="annSectionTitle">5. Pengumuman - <span style="color:var(--primary);" id="annYearLabel">-</span></div>
+    <div class="section-title">5. Keamanan Admin</div>
+    <div class="field">
+      <label>Kata Sandi Baru</label>
+      <input type="password" id="newPass" placeholder="Kosongkan jika tidak ingin mengubah">
+    </div>
+    <button class="btn btn-ghost" id="savePassBtn">Perbarui Kata Sandi</button>
+    <p class="msg-success" id="passMsg">✓ Kata sandi berhasil diperbarui.</p>
+    </div>
+
+    <div id="tabPengumuman" style="display:none;">
+    <div class="section-title" id="annSectionTitle" style="margin-top:0;">Pengumuman - <span style="color:var(--primary);" id="annYearLabel">-</span></div>
+    <p class="sc-note">Pengumuman terbit untuk tahun ajaran yang sedang diedit (ganti di tab Portal &amp; Link).</p>
     <div id="existingAnnList"></div>
     <div class="type-toggle" id="annTypeToggle">
       <button type="button" class="type-toggle-btn sel" data-type="info">Info</button>
@@ -662,15 +765,16 @@
       <button class="btn btn-primary" id="saveAnnBtn" style="flex:1;">+ Terbitkan Pengumuman</button>
       <button class="btn btn-ghost" id="cancelAnnBtn" style="display:none; max-width:120px;">Batal</button>
     </div>
+    </div>
 
-    <div class="section-title">6. Keamanan Admin</div>
-    <div class="field">
-      <label>Kata Sandi Baru</label>
-      <input type="password" id="newPass" placeholder="Kosongkan jika tidak ingin mengubah">
-    </div>
-    <button class="btn btn-ghost" id="savePassBtn">Perbarui Kata Sandi</button>
-    <p class="msg-success" id="passMsg">✓ Kata sandi berhasil diperbarui.</p>
-    </div>
+    <div id="tabIjin" style="display:none;">
+    <div class="section-title" style="margin-top:0;">Ijin Guru</div>
+    <p class="sc-note">Guru mengajukan ijin lewat ikon <b>Ijin Guru</b> di halaman utama. Ijin otomatis hilang dari portal setelah tanggal selesai. Hapus di sini jika ada yang keliru.</p>
+    <div id="existingLeaveList"></div>
+    <div class="section-title">Data Guru dari E-Rapor</div>
+    <p class="sc-note">Mengambil <b>nama guru dan penugasan mengajarnya saja</b> (kelas &amp; mapel) dari E-Rapor untuk mengisi form Ijin Guru. Tekan sinkron setiap ada perubahan penugasan di E-Rapor.</p>
+    <div id="guruRaporBox"></div>
+        </div>
 
     <div id="tabJadwal" style="display:none;">
       <div class="section-title" style="margin-top:0;">Jadwal Pelajaran - <span id="sc_year" style="color:var(--primary);">-</span></div>
@@ -926,14 +1030,21 @@ function normalizeCfg(data){
         legacyButtons.forEach(b=>links.push({ label: b.label, icon: b.icon || "svg:link", type: "group", links: b.links || [] }));
         elements = elements.filter(e=>e.type !== "button");
       }
-      return { id: y.id || uid(), label: y.label || "Tahun Ajaran", links, elements, announcements: Array.isArray(y.announcements) ? y.announcements.slice() : [] };
+      return { id: y.id || uid(), label: y.label || "Tahun Ajaran", links, elements, announcements: Array.isArray(y.announcements) ? y.announcements.slice() : [], leaves: Array.isArray(y.leaves) ? y.leaves.slice() : [], noLeaveMenu: !!y.noLeaveMenu, guruRapor: (y.guruRapor && Array.isArray(y.guruRapor.list)) ? y.guruRapor : null };
     });
   } else if(data && Array.isArray(data.links) && data.links.length > 0){
     out.years = [{ id: uid(), label: "Tahun Ajaran Aktif", links: data.links, elements: [] }];
   } else {
     out.years = [{ id: uid(), label: "2025/2026", links: DEFAULT_LINKS_2025_2026, elements: [] }];
   }
+  out.years.forEach(ensureLeaveMenu);
   return out;
+}
+// Menu "Ijin Guru" selalu ada di tiap tahun ajaran sebagai ikon biasa (bisa digeser ▲▼, atau disembunyikan admin)
+function ensureLeaveMenu(y){
+  if(!y || y.noLeaveMenu) return;
+  if(!Array.isArray(y.links)) y.links = [];
+  if(!y.links.some(l=>l && l.type === "leave")) y.links.push({ type: "leave", id: "leave-menu", label: "Ijin Guru", icon: "svg:users" });
 }
 
 function getEditingYear(){ return cfg.years.find(y=>y.id===editingYearId) || cfg.years[0]; }
@@ -1126,6 +1237,7 @@ function render(){
   grid.innerHTML = "";
   renderElements();
   renderAnnouncements();
+  renderLeaves();
   $("searchWrap").style.display = (links && links.length) ? "block" : "none";
   $("noResult").style.display = "none";
   if(!links || links.length === 0){
@@ -1144,7 +1256,16 @@ function render(){
     if(l.icon && l.icon.indexOf("svg:") === 0) key = l.icon.slice(4);
     const theme = getIconTheme(key);
 
-    if(l.type === "kaldik"){
+    if(l.type === "leave"){
+      const div = document.createElement("div");
+      div.className = "linkcard";
+      div.style.cursor = "pointer";
+      div.style.setProperty("--card-border", theme.border);
+      const n = activeLeaveCount();
+      div.innerHTML = `${iconBadgeHTML(l.icon, 30)}<span class="lb">${escapeHtml(l.label)}</span>${n ? `<span class="lv-badge">${n}</span>` : ""}`;
+      div.onclick = ()=> openLeaveForm();
+      grid.appendChild(div);
+    } else if(l.type === "kaldik"){
       const div = document.createElement("div");
       div.className = "linkcard";
       div.style.cursor = "pointer";
@@ -1515,7 +1636,8 @@ $("addYearBtn").onclick = ()=>{
   const label = $("newYearLabel").value.trim();
   if(!label){ $("yearErr").style.display="block"; return; }
   $("yearErr").style.display="none";
-  const newYear = { id: uid(), label, links: [], elements: [], announcements: [] };
+  const newYear = { id: uid(), label, links: [], elements: [], announcements: [], leaves: [] };
+  ensureLeaveMenu(newYear);
   cfg.years.push(newYear);
   editingYearId = newYear.id;
   $("newYearLabel").value = "";
@@ -1585,19 +1707,19 @@ function renderAdminList(){
   if(lbl && year) lbl.textContent = year.label;
   if(!links || links.length===0){
     list.innerHTML = '<div style="color:var(--muted);font-size:13.5px;padding:16px;text-align:center;background:var(--surface);border-radius:var(--radius-md);border:1px dashed var(--border);">Belum ada link di tahun ajaran ini.</div>';
-    renderElementsAdminList(); renderAnnAdminList();
+    renderElementsAdminList(); renderAnnAdminList(); renderLeaveAdminList();
     return;
   }
   links.forEach((l, i)=>{
     const row = document.createElement("div");
     row.className = "existing";
-    const isGroup = l.type === "group", isSched = l.type === "schedule", isKd = l.type === "kaldik";
+    const isGroup = l.type === "group", isSched = l.type === "schedule", isKd = l.type === "kaldik", isLv = l.type === "leave";
 
     row.innerHTML = `
       ${iconBadgeHTML(l.icon, 20)}
-      <span class="meta"><span class="lb">${escapeHtml(l.label)}</span><span class="url">${isKd ? ((l.kaldik.events||[]).length + " kegiatan") : isSched ? (l.schedule.classes.length + " kelas · " + Object.keys(l.schedule.guru).length + " guru") : isGroup ? ((l.links || []).length + " link di dalam tombol ini") : escapeHtml(l.url)}</span></span>
+      <span class="meta"><span class="lb">${escapeHtml(l.label)}</span><span class="url">${isLv ? "Form &amp; daftar ijin guru" : isKd ? ((l.kaldik.events||[]).length + " kegiatan") : isSched ? (l.schedule.classes.length + " kelas · " + Object.keys(l.schedule.guru).length + " guru") : isGroup ? ((l.links || []).length + " link di dalam tombol ini") : escapeHtml(l.url)}</span></span>
       <div class="existing-actions">
-        ${isKd ? '<span class="type-badge">Kaldik</span>' : isSched ? '<span class="type-badge">Jadwal</span>' : isGroup ? '<span class="type-badge">Tombol</span>' : ''}
+        ${isLv ? '<span class="type-badge">Ijin</span>' : isKd ? '<span class="type-badge">Kaldik</span>' : isSched ? '<span class="type-badge">Jadwal</span>' : isGroup ? '<span class="type-badge">Tombol</span>' : ''}
         <button class="btn-icon" data-dir="-1" ${i===0?"disabled":""} aria-label="Naik">▲</button>
         <button class="btn-icon" data-dir="1" ${i===links.length-1?"disabled":""} aria-label="Turun">▼</button>
         <button class="btn-icon edit" data-i="${i}" aria-label="Edit"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>
@@ -1607,15 +1729,17 @@ function renderAdminList(){
     row.querySelectorAll(".btn-icon[data-dir]").forEach(ab=>{
       ab.onclick = ()=> moveLink(i, parseInt(ab.dataset.dir,10));
     });
-    row.querySelector(".btn-icon.edit").onclick = ()=> isKd ? editKaldik(i) : isSched ? editSchedule(i) : isGroup ? startEditGroup(i) : startEditLink(i);
+    const editBtn = row.querySelector(".btn-icon.edit");
+    if(isLv) editBtn.remove(); else editBtn.onclick = ()=> isKd ? editKaldik(i) : isSched ? editSchedule(i) : isGroup ? startEditGroup(i) : startEditLink(i);
     row.querySelector(".btn-icon.del").onclick = ()=>{
       links.splice(i,1);
+      if(isLv) getEditingYear().noLeaveMenu = true;
       if(editingLinkIndex === i) cancelEditLink();
-      saveConfig(isKd ? "Kaldik berhasil dihapus." : isSched ? "Jadwal berhasil dihapus." : isGroup ? "Tombol berhasil dihapus." : "Link berhasil dihapus."); renderAdminList(); render(); renderPreview();
+      saveConfig(isLv ? "Menu Ijin Guru disembunyikan." : isKd ? "Kaldik berhasil dihapus." : isSched ? "Jadwal berhasil dihapus." : isGroup ? "Tombol berhasil dihapus." : "Link berhasil dihapus."); renderAdminList(); render(); renderPreview();
     };
     list.appendChild(row);
   });
-  renderElementsAdminList(); renderAnnAdminList();
+  renderElementsAdminList(); renderAnnAdminList(); renderLeaveAdminList();
 }
 
 function showBanner(msg){
@@ -1979,7 +2103,7 @@ function startEditAnn(id){
   annLinkRows = (Array.isArray(a.links) ? a.links : []).map(l=>({ label: l.label || "", url: l.url || "" }));
   renderAnnLinkRows();
   $("annErr").style.display = "none";
-  $("annSectionTitle").innerHTML = "5. Edit Pengumuman — <span style=\"color:var(--primary);\">" + escapeHtml(a.title || "") + "</span>";
+  $("annSectionTitle").innerHTML = "Edit Pengumuman — <span style=\"color:var(--primary);\">" + escapeHtml(a.title || "") + "</span>";
   $("saveAnnBtn").textContent = "✓ Perbarui Pengumuman";
   $("cancelAnnBtn").style.display = "inline-flex";
   $("annTitle").scrollIntoView({ behavior: "smooth", block: "center" });
@@ -1991,7 +2115,7 @@ function cancelEditAnn(){
   $("annPinned").checked = false; $("annEvent").value = ""; annLinkRows = []; renderAnnLinkRows();
   $("annErr").style.display = "none";
   setAnnType("info");
-  $("annSectionTitle").innerHTML = '5. Pengumuman - <span style="color:var(--primary);" id="annYearLabel">' + escapeHtml((getEditingYear() || {}).label || "-") + '</span>';
+  $("annSectionTitle").innerHTML = 'Pengumuman - <span style="color:var(--primary);" id="annYearLabel">' + escapeHtml((getEditingYear() || {}).label || "-") + '</span>';
   $("saveAnnBtn").textContent = "+ Terbitkan Pengumuman";
   $("cancelAnnBtn").style.display = "none";
 }
@@ -2030,6 +2154,354 @@ $("saveAnnBtn").onclick = ()=>{
   }
   renderAnnAdminList(); renderAnnouncements();
 };
+
+// ===== Ijin Guru =====
+const LV_REASONS = {
+  sakit:    { label: "Sakit",                color: "#EF4444", bg: "rgba(239, 68, 68, 0.12)" },
+  keluarga: { label: "Kepentingan Keluarga", color: "#F59E0B", bg: "rgba(245, 158, 11, 0.14)" },
+  dinas:    { label: "Dinas Luar",           color: "#0EA5E9", bg: "rgba(14, 165, 233, 0.12)" },
+  lainnya:  { label: "Lainnya",              color: "#8B5CF6", bg: "rgba(139, 92, 246, 0.12)" }
+};
+const LV_SHOW = 3, LV_TASK_PREVIEW = 2, LV_MAX_TASKS = 10;
+const LV_MINE_KEY = "sim_my_leaves", LV_NAME_KEY = "sim_leave_name";
+let lvReason = "sakit", lvTasks = [], lvShowAll = false, lvBusy = false;
+const lvExpanded = new Set();
+
+function lvMine(){ try{ return JSON.parse(localStorage.getItem(LV_MINE_KEY) || "[]"); }catch(e){ return []; } }
+function lvRememberMine(id){ try{ localStorage.setItem(LV_MINE_KEY, JSON.stringify(lvMine().concat(id).slice(-50))); }catch(e){} }
+function getLeaveList(year){
+  if(!year) return [];
+  if(!Array.isArray(year.leaves)) year.leaves = [];
+  return year.leaves;
+}
+function allLeaves(){
+  const out = [];
+  cfg.years.forEach(y=> getLeaveList(y).forEach(l=> out.push(l)));
+  return out;
+}
+function lvEnd(l){ return l.end || l.start; }
+function isLeaveActive(l){ const d = eventDays(lvEnd(l)); return d !== null && d >= 0; }
+function sortedLeaves(){
+  return allLeaves().filter(isLeaveActive).sort((a,b)=> String(a.start).localeCompare(String(b.start)) || String(b.date || "").localeCompare(String(a.date || "")));
+}
+function todayStr(){
+  const d = new Date(), p = n => String(n).padStart(2, "0");
+  return d.getFullYear() + "-" + p(d.getMonth()+1) + "-" + p(d.getDate());
+}
+function lvRange(l){
+  const e = lvEnd(l);
+  return e === l.start ? formatEventDate(l.start) : formatEventDate(l.start, true) + " – " + formatEventDate(e, true);
+}
+
+// Ambil data terbaru dari server dulu, ubah, lalu simpan — supaya perubahan admin/guru lain tidak tertimpa.
+async function mutateLeaves(fn, msg){
+  let base = cfg;
+  if(supa){
+    try{
+      const { data, error } = await supa.from(SUPABASE_TABLE).select("*").eq("id", SUPABASE_ROW_ID).maybeSingle();
+      if(!error && data && data.years && data.years.length) base = normalizeCfg(data);
+    }catch(e){}
+  }
+  fn(base);
+  cfg = base;
+  await saveConfig(msg);
+  render(); renderLeaveAdminList();
+}
+function lvDelete(id){
+  return mutateLeaves(b=> b.years.forEach(y=>{ y.leaves = getLeaveList(y).filter(x=> x.id !== id); }), "Ijin dihapus.");
+}
+
+function activeLeaveCount(){ return allLeaves().filter(isLeaveActive).length; }
+
+function renderLeaves(){
+  const box = $("leaves");
+  if(!box) return;
+  const list = sortedLeaves();
+  box.innerHTML = "";
+  if(!list.length){ box.style.display = "none"; return; }
+  box.style.display = "flex";
+
+  const head = document.createElement("div");
+  head.className = "ann-head";
+  head.innerHTML = `<span class="ann-head-ic" style="background:linear-gradient(135deg,#F9A8D4,#EC4899);">${uiIco(ICONS.users.svg, 15)}</span><span>Ijin Guru</span><span class="ann-count">${list.length}</span>`;
+  box.appendChild(head);
+
+  const mine = lvMine();
+  const shown = lvShowAll ? list : list.slice(0, LV_SHOW);
+  shown.forEach(l=>{
+    const r = LV_REASONS[l.reason] || LV_REASONS.lainnya;
+    const tasks = Array.isArray(l.tasks) ? l.tasks : [];
+    const open = lvExpanded.has(l.id);
+    const vis = open ? tasks : tasks.slice(0, LV_TASK_PREVIEW);
+    const ds = eventDays(l.start), de = eventDays(lvEnd(l));
+    const ongoing = ds <= 0 && de >= 0;
+    const chip = ongoing ? (ds === 0 && de === 0 ? "Hari ini" : "Sedang berlangsung") : countdownText(ds);
+    const isMine = mine.indexOf(l.id) !== -1;
+    const card = document.createElement("article");
+    card.className = "anncard";
+    card.style.setProperty("--ann-color", r.color);
+    card.style.setProperty("--ann-bg", r.bg);
+    card.innerHTML = `
+      <div class="ann-top"><span class="ann-badge">${escapeHtml(r.label)}</span>${isAnnNew(l) ? '<span class="ann-new">Baru</span>' : ""}<span class="ann-date">${escapeHtml(formatAnnDate(l.date))}</span></div>
+      <h3 class="ann-title">${escapeHtml(l.name || "")}</h3>
+      <div class="ann-event"><span class="ann-ev-date">${uiIco(ICONS.calendar.svg, 14)} ${escapeHtml(lvRange(l))}</span><span class="ann-count-chip${ongoing ? " today" : ""}">${escapeHtml(chip)}</span></div>
+      ${l.note ? `<div class="ann-body">${escapeHtml(l.note)}</div>` : ""}
+      <div class="lv-label">Tugas untuk kelas yang ditinggalkan</div>
+      <div class="lv-tasks">${vis.map(t=>`<div class="lv-task"><div class="lv-task-h"><span class="lv-chip">${escapeHtml(t.kelas || "")}</span><span class="lv-chip mp">${escapeHtml(t.mapel || "")}</span></div><div class="lv-task-b">${escapeHtml(t.tugas || "")}</div></div>`).join("")}</div>
+      ${tasks.length > LV_TASK_PREVIEW ? `<button type="button" class="ann-more">${open ? "Tutup" : "Lihat " + (tasks.length - LV_TASK_PREVIEW) + " kelas lainnya"}</button>` : ""}
+      ${isMine ? '<div class="lv-mine"><button type="button" class="lv-cancel">Batalkan ijin ini</button></div>' : ""}`;
+    const more = card.querySelector(".ann-more");
+    if(more) more.onclick = ()=>{ if(open) lvExpanded.delete(l.id); else lvExpanded.add(l.id); renderLeaves(); };
+    const cb = card.querySelector(".lv-cancel");
+    if(cb) cb.onclick = ()=>{
+      if(cb.dataset.armed !== "1"){
+        cb.dataset.armed = "1"; cb.textContent = "Yakin? Klik lagi untuk membatalkan";
+        setTimeout(()=>{ if(cb.isConnected){ cb.dataset.armed = ""; cb.textContent = "Batalkan ijin ini"; } }, 3000);
+        return;
+      }
+      lvDelete(l.id);
+    };
+    box.appendChild(card);
+  });
+
+  if(list.length > LV_SHOW){
+    const tg = document.createElement("button");
+    tg.type = "button"; tg.className = "ann-toggle";
+    tg.textContent = lvShowAll ? "Tampilkan lebih sedikit" : "Lihat " + (list.length - LV_SHOW) + " ijin lainnya";
+    tg.onclick = ()=>{ lvShowAll = !lvShowAll; renderLeaves(); };
+    box.appendChild(tg);
+  }
+}
+
+// ----- Form pengajuan (guru) -----
+function setLvReason(r){
+  lvReason = r;
+  $("lvReasonToggle").querySelectorAll(".type-toggle-btn").forEach(b=> b.classList.toggle("sel", b.dataset.r === r));
+  $("lvNoteLbl").textContent = r === "lainnya" ? "Alasan (wajib diisi)" : "Keterangan tambahan (opsional)";
+}
+$("lvReasonToggle").querySelectorAll(".type-toggle-btn").forEach(b=>{ b.onclick = ()=> setLvReason(b.dataset.r); });
+
+function renderLvTasks(){
+  const wrap = $("lvTaskRows");
+  wrap.innerHTML = "";
+  lvTasks.forEach((t, i)=>{
+    const box = document.createElement("div");
+    box.className = "lv-form-task";
+    box.innerHTML = `<div class="lv-form-task-h"><span>Kelas ${i+1}</span>${lvTasks.length > 1 ? '<button type="button" class="rm-row" aria-label="Hapus baris" style="background:var(--bg);border:1px solid var(--border);color:var(--danger);width:30px;height:30px;border-radius:10px;cursor:pointer;">✕</button>' : ""}</div>
+      <div class="lv-2"><input class="lv-k" maxlength="40" placeholder="Kelas (mis. X TO1)" list="lvKelasList" autocomplete="off"><input class="lv-m" maxlength="60" placeholder="Mapel (mis. Matematika)" list="lvMapelList" autocomplete="off"></div>
+      <textarea class="lv-t" maxlength="600" placeholder="Tugas yang dikerjakan siswa (mis. Kerjakan LKS hal. 24-25 dan kumpulkan ke ketua kelas)"></textarea>`;
+    const k = box.querySelector(".lv-k"), m = box.querySelector(".lv-m"), tt = box.querySelector(".lv-t");
+    k.value = t.kelas; m.value = t.mapel; tt.value = t.tugas;
+    k.oninput = ()=> t.kelas = k.value; m.oninput = ()=> t.mapel = m.value; tt.oninput = ()=> t.tugas = tt.value;
+    const rm = box.querySelector(".rm-row");
+    if(rm) rm.onclick = ()=>{ lvTasks.splice(i, 1); renderLvTasks(); };
+    wrap.appendChild(box);
+  });
+  $("lvAddTask").style.display = lvTasks.length >= LV_MAX_TASKS ? "none" : "inline-flex";
+}
+$("lvAddTask").onclick = ()=>{
+  if(lvTasks.length >= LV_MAX_TASKS) return;
+  lvTasks.push({ kelas: "", mapel: "", tugas: "" });
+  renderLvTasks();
+};
+
+function openLeaveForm(){
+  let saved = "";
+  try{ saved = localStorage.getItem(LV_NAME_KEY) || ""; }catch(e){}
+  lvTasks = [{ kelas: "", mapel: "", tugas: "" }];
+  $("lvName").value = saved; $("lvNote").value = "";
+  $("lvStart").value = todayStr(); $("lvStart").min = todayStr();
+  $("lvEnd").value = ""; $("lvEnd").min = todayStr();
+  $("lvErr").style.display = "none";
+  $("lvSubmit").disabled = false; $("lvSubmit").textContent = "Kirim Ijin";
+  setLvReason("sakit"); renderLvTasks(); lvGuruRefresh();
+  openModal("leaveOverlay");
+}
+$("lvClose").onclick = ()=> closeModal("leaveOverlay");
+$("leaveOverlay").onclick = (e)=>{ if(e.target === $("leaveOverlay")) closeModal("leaveOverlay"); };
+
+$("lvSubmit").onclick = async ()=>{
+  if(lvBusy) return;
+  const err = m => { $("lvErr").textContent = m; $("lvErr").style.display = "block"; };
+  const name = $("lvName").value.trim(), note = $("lvNote").value.trim();
+  const start = $("lvStart").value, end = $("lvEnd").value || start;
+  if(!name) return err("Nama guru wajib diisi.");
+  if(lvReason === "lainnya" && !note) return err("Untuk alasan Lainnya, mohon tuliskan alasannya.");
+  if(!start) return err("Tanggal mulai wajib diisi.");
+  if(end < start) return err("Tanggal selesai tidak boleh sebelum tanggal mulai.");
+  if(eventDays(end) === null || eventDays(end) < 0) return err("Tanggal ijin sudah lewat.");
+  const filled = lvTasks.map(t=>({ kelas: t.kelas.trim(), mapel: t.mapel.trim(), tugas: t.tugas.trim() })).filter(t=> t.kelas || t.mapel || t.tugas);
+  if(!filled.length) return err("Wajib mengisi tugas untuk kelas yang ditinggalkan (Kelas, Mapel, dan Tugas).");
+  if(filled.some(t=> !t.kelas || !t.mapel || !t.tugas)) return err("Lengkapi Kelas, Mapel, dan Tugas pada setiap baris.");
+  $("lvErr").style.display = "none";
+
+  const leave = { id: uid(), name, reason: lvReason, note, start, end, tasks: filled, date: new Date().toISOString() };
+  lvBusy = true; $("lvSubmit").disabled = true; $("lvSubmit").textContent = "Mengirim…";
+  try{
+    await mutateLeaves(b=>{
+      // buang ijin yang sudah lewat lebih dari 30 hari supaya data tidak menumpuk
+      b.years.forEach(y=>{ y.leaves = getLeaveList(y).filter(l=>{ const d = eventDays(lvEnd(l)); return d !== null && d >= -30; }); });
+      getLeaveList(b.years[b.years.length - 1]).push(leave);
+    }, "Ijin berhasil dikirim dan tampil di portal.");
+    lvRememberMine(leave.id);
+    try{ localStorage.setItem(LV_NAME_KEY, name); }catch(e){}
+    closeModal("leaveOverlay");
+    renderLeaves();
+  }catch(e){
+    err("Gagal mengirim ijin. Periksa koneksi lalu coba lagi.");
+  }finally{
+    lvBusy = false; $("lvSubmit").disabled = false; $("lvSubmit").textContent = "Kirim Ijin";
+  }
+};
+
+// ===== Data guru & penugasan dari E-Rapor (untuk fitur Ijin Guru) =====
+// Hanya NAMA GURU + PENUGASAN (kelas & mapel) yang diambil dan disimpan.
+const RAPOR_GURU_URL = "https://iejpwxmcqwecejsrezry.supabase.co/functions/v1/guru-penugasan";
+let grBusy = false;
+function grNorm(s){ return String(s || "").toLowerCase().replace(/\s+/g, " ").trim(); }
+function getGuruRapor(){
+  for(let i = cfg.years.length - 1; i >= 0; i--){
+    const g = cfg.years[i].guruRapor;
+    if(g && Array.isArray(g.list)) return g;
+  }
+  return null;
+}
+function grFind(name){
+  const g = getGuruRapor(), n = grNorm(name);
+  if(!g || !n) return null;
+  return g.list.find(x=> grNorm(x.nama) === n) || null;
+}
+async function fetchGuruRapor(){
+  const ctl = new AbortController(), to = setTimeout(()=> ctl.abort(), 20000);
+  try{
+    const r = await fetch(RAPOR_GURU_URL, { signal: ctl.signal });
+    const d = await r.json().catch(()=> ({}));
+    if(!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+    if(!Array.isArray(d.guru)) throw new Error("Format data tidak dikenali.");
+    return {
+      ta: String(d.tahun_ajaran || ""), ts: new Date().toISOString(),
+      list: d.guru.map(g=>({
+        nama: String(g.nama || "").trim(),
+        penugasan: (Array.isArray(g.penugasan) ? g.penugasan : [])
+          .map(p=>({ kelas: String(p.kelas || "").trim(), mapel: String(p.mapel || "").trim() }))
+          .filter(p=> p.kelas && p.mapel)
+      })).filter(g=> g.nama)
+    };
+  } finally { clearTimeout(to); }
+}
+async function syncGuruRapor(){
+  if(grBusy) return;
+  grBusy = true; renderGuruRaporAdmin();
+  try{
+    const data = await fetchGuruRapor();
+    grBusy = false;
+    await mutateLeaves(b=>{ b.years[b.years.length - 1].guruRapor = data; }, "Data guru dari E-Rapor tersinkron (" + data.list.length + " guru).");
+  }catch(e){
+    grBusy = false;
+    renderGuruRaporAdmin("Gagal mengambil data dari E-Rapor: " + (e && e.name === "AbortError" ? "waktu habis" : (e && e.message) || e) + ". Pastikan edge function guru-penugasan sudah di-deploy.");
+  }
+}
+function renderGuruRaporAdmin(errMsg){
+  const box = $("guruRaporBox");
+  if(!box) return;
+  const g = getGuruRapor();
+  let info = "Belum pernah disinkron.";
+  if(g){
+    const total = g.list.reduce((n, x)=> n + x.penugasan.length, 0);
+    const when = g.ts ? new Date(g.ts).toLocaleString("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "-";
+    info = "<b>" + g.list.length + " guru</b>, " + total + " penugasan" + (g.ta ? " (" + escapeHtml(g.ta) + ")" : "") + ". Terakhir sinkron: " + escapeHtml(when) + ".";
+  }
+  box.innerHTML = '<p class="sc-note" style="margin-bottom:10px;">' + info + '</p>' +
+    (errMsg ? '<p class="err" style="display:block;margin-bottom:10px;">' + escapeHtml(errMsg) + '</p>' : '') +
+    '<button type="button" class="btn btn-primary" id="grSyncBtn"' + (grBusy ? " disabled" : "") + ' style="margin-bottom:12px;">' + (grBusy ? "Mengambil data…" : "Sinkron dari E-Rapor") + '</button>' +
+    (g && g.list.length ? '<details style="margin-bottom:16px;"><summary style="cursor:pointer;font-size:13.5px;color:var(--muted);">Lihat daftar guru &amp; penugasan</summary><div style="margin-top:8px;font-size:13px;line-height:1.5;">' +
+      g.list.map(x=> '<div style="padding:6px 0;border-bottom:1px solid var(--border);"><b>' + escapeHtml(x.nama) + '</b><br><span style="color:var(--muted);">' +
+        (x.penugasan.length ? x.penugasan.map(p=> escapeHtml(p.kelas + " - " + p.mapel)).join("; ") : "Belum ada penugasan") + '</span></div>').join("") +
+      '</div></details>' : '');
+  const btn = $("grSyncBtn");
+  if(btn) btn.onclick = syncGuruRapor;
+}
+
+// Form Ijin: saran nama guru + kelas/mapel sesuai penugasan
+function lvGuruRefresh(){
+  const g = getGuruRapor(), dl = $("lvNameList");
+  dl.innerHTML = "";
+  if(g) g.list.forEach(x=>{ const o = document.createElement("option"); o.value = x.nama; dl.appendChild(o); });
+  lvGuruMatch();
+}
+function lvGuruMatch(){
+  const hint = $("lvGuruHint"), fill = $("lvFillTasks"), kl = $("lvKelasList"), ml = $("lvMapelList");
+  kl.innerHTML = ""; ml.innerHTML = "";
+  const g = grFind($("lvName").value);
+  if(!g){ hint.style.display = "none"; fill.style.display = "none"; return; }
+  const kelas = [...new Set(g.penugasan.map(p=> p.kelas))], mapel = [...new Set(g.penugasan.map(p=> p.mapel))];
+  kelas.forEach(v=>{ const o = document.createElement("option"); o.value = v; kl.appendChild(o); });
+  mapel.forEach(v=>{ const o = document.createElement("option"); o.value = v; ml.appendChild(o); });
+  hint.style.display = "block";
+  if(!g.penugasan.length){
+    hint.textContent = "Belum ada penugasan mengajar atas nama ini di E-Rapor. Isi kelas dan mapel secara manual.";
+    fill.style.display = "none";
+    return;
+  }
+  hint.textContent = g.penugasan.length + " penugasan mengajar tercatat di E-Rapor. Hapus baris kelas yang tidak Anda tinggalkan.";
+  fill.style.display = "inline-flex";
+}
+$("lvName").addEventListener("input", lvGuruMatch);
+$("lvName").addEventListener("change", lvGuruMatch);
+$("lvFillTasks").onclick = ()=>{
+  const g = grFind($("lvName").value);
+  if(!g) return;
+  const keep = lvTasks.filter(t=> t.kelas.trim() || t.mapel.trim() || t.tugas.trim());
+  const has = (k, m)=> keep.some(t=> grNorm(t.kelas) === grNorm(k) && grNorm(t.mapel) === grNorm(m));
+  g.penugasan.forEach(p=>{ if(keep.length < LV_MAX_TASKS && !has(p.kelas, p.mapel)) keep.push({ kelas: p.kelas, mapel: p.mapel, tugas: "" }); });
+  lvTasks = keep.length ? keep : [{ kelas: "", mapel: "", tugas: "" }];
+  renderLvTasks();
+};
+
+// ----- Admin: daftar ijin -----
+function renderLeaveAdminList(){
+  const list = $("existingLeaveList");
+  if(!list) return;
+  renderGuruRaporAdmin();
+  const items = allLeaves().slice().sort((a,b)=> String(b.date || "").localeCompare(String(a.date || "")));
+  list.innerHTML = "";
+  const yr = getEditingYear();
+  if(yr && yr.noLeaveMenu){
+    const rb = document.createElement("button");
+    rb.type = "button"; rb.className = "btn btn-ghost"; rb.style.marginBottom = "12px";
+    rb.textContent = "Tampilkan lagi menu Ijin Guru di portal (" + yr.label + ")";
+    rb.onclick = ()=>{ yr.noLeaveMenu = false; ensureLeaveMenu(yr); saveConfig("Menu Ijin Guru ditampilkan."); renderAdminList(); render(); renderPreview(); };
+    list.appendChild(rb);
+  }
+  if(!items.length){
+    list.insertAdjacentHTML("beforeend", '<div style="color:var(--muted);font-size:13.5px;padding:16px;text-align:center;background:var(--surface);border-radius:var(--radius-md);border:1px dashed var(--border);margin-bottom:16px;">Belum ada ijin guru.</div>');
+    return;
+  }
+  items.forEach(l=>{
+    const r = LV_REASONS[l.reason] || LV_REASONS.lainnya;
+    const active = isLeaveActive(l);
+    const row = document.createElement("div");
+    row.className = "existing" + (active ? "" : " expired");
+    row.innerHTML = `
+      <span class="ann-badge" style="--ann-color:${r.color}; --ann-bg:${r.bg};">${escapeHtml(r.label)}</span>
+      <span class="meta"><span class="lb">${escapeHtml(l.name || "")}</span><span class="url">${escapeHtml(lvRange(l))} · ${(l.tasks || []).length} kelas${active ? "" : ' · <span class="ann-expired-tag">Sudah lewat</span>'}</span></span>
+      <div class="existing-actions">
+        <button class="btn-icon del" aria-label="Hapus"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+      </div>`;
+    const del = row.querySelector(".del");
+    del.onclick = ()=>{
+      if(del.dataset.armed !== "1"){
+        del.dataset.armed = "1"; del.textContent = "?";
+        setTimeout(()=>{ if(del.isConnected) renderLeaveAdminList(); }, 3000);
+        return;
+      }
+      lvDelete(l.id);
+    };
+    list.appendChild(row);
+  });
+}
+setInterval(()=>{ try{ renderLeaves(); }catch(e){} }, 60000);
+
 
 async function init(){
   if(SC_ONLY){
@@ -2729,6 +3201,10 @@ function scInit(){
   $("adminTabs").querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{
     $("adminTabs").querySelectorAll("[data-tab]").forEach(x=>x.classList.toggle("sel",x===b));
     $("tabPortal").style.display=b.dataset.tab==="portal"?"":"none";
+    $("tabPengumuman").style.display=b.dataset.tab==="pengumuman"?"":"none";
+    $("tabIjin").style.display=b.dataset.tab==="ijin"?"":"none";
+    if(b.dataset.tab==="pengumuman")renderAnnAdminList();
+    if(b.dataset.tab==="ijin")renderLeaveAdminList();
     $("tabJadwal").style.display=b.dataset.tab==="jadwal"?"":"none";
     $("tabKaldik").style.display=b.dataset.tab==="kaldik"?"":"none";
     if(b.dataset.tab==="kaldik")kdAdmin();
